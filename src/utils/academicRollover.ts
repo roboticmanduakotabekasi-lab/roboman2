@@ -183,11 +183,14 @@ export function applyBatchRollover(
         ? customClassRoomOverrides[key].trim().toUpperCase()
         : plan.newClassRoom;
 
+    const isGraduated = plan.actionType === 'graduate_alumni';
+
     return {
       ...m,
       grade: plan.newGrade,
       classRoom: overriddenRoom,
       status: plan.newStatus as any,
+      ...(isGraduated ? { role: 'member', jabatan: 'member' } : {}),
     };
   });
 }

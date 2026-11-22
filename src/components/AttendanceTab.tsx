@@ -354,6 +354,18 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({
       return true;
     }
 
+    // 3. Inactive / Alumni / Resigned (exempt from daily attendance roster)
+    const status = (m.status || '').toLowerCase().trim();
+    if (
+      status === 'alumni' ||
+      status === 'keluar' ||
+      status === 'resigned' ||
+      status === 'tidak aktif' ||
+      status === 'non-aktif'
+    ) {
+      return true;
+    }
+
     return false;
   };
 

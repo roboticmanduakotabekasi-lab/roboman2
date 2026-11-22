@@ -627,6 +627,13 @@ export function isExecutiveOrAdvisor(
   if (typeof roleOrSession === 'object') {
     // If a session or member object is passed directly
     const sessionObj = roleOrSession;
+    const status = (typeof (sessionObj as any).status === 'string' ? (sessionObj as any).status : '') ||
+                   (typeof (sessionObj as any).membershipStatus === 'string' ? (sessionObj as any).membershipStatus : '');
+    const cleanSt = status.toLowerCase().trim();
+    if ((cleanSt === 'alumni' || cleanSt === 'keluar' || cleanSt === 'resigned' || cleanSt === 'tidak aktif') && !isHeadAdmin(sessionObj)) {
+      return false;
+    }
+
     const canonical = getCanonicalRole(sessionObj);
     if (canonical === 'admin' || canonical === 'executive_board' || canonical === 'advisor') {
       return true;
@@ -1141,6 +1148,19 @@ export function getCanonicalRole(session?: {
     cleanJabatan === 'pembina'
   ) {
     return 'advisor';
+  }
+
+  // 1.5. Inactive / Alumni Check: Demisioner officers and resigned members strictly lose executive privileges
+  if (
+    cleanStatus === 'alumni' ||
+    cleanStatus === 'keluar' ||
+    cleanStatus === 'resigned' ||
+    cleanStatus === 'tidak aktif' ||
+    cleanRole === 'alumni' ||
+    cleanRole === 'keluar' ||
+    cleanRole === 'resigned'
+  ) {
+    return 'member';
   }
 
   // 2. Authorized Executive Board (President, VP, Secretary, Treasurer, PR, BPH, or promoted executive officers)
