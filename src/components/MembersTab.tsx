@@ -215,12 +215,16 @@ export const MembersTab: React.FC<MembersTabProps> = ({
   } | null>(null);
 
   useEffect(() => {
-    const handleClose = () => setDropdownAnchor(null);
+    const handleClose = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (target?.closest?.('[data-portal-dropdown]')) return;
+      setDropdownAnchor(null);
+    };
     window.addEventListener('scroll', handleClose, true);
-    window.addEventListener('resize', handleClose);
+    window.addEventListener('resize', () => setDropdownAnchor(null));
     return () => {
       window.removeEventListener('scroll', handleClose, true);
-      window.removeEventListener('resize', handleClose);
+      window.removeEventListener('resize', () => setDropdownAnchor(null));
     };
   }, []);
 
@@ -1621,14 +1625,26 @@ export const MembersTab: React.FC<MembersTabProps> = ({
                       {(() => {
                         const roleBadge = getRoleBadgeMeta(member);
                         return (
-                          <div className="relative inline-block" onClick={(e) => e.stopPropagation()} data-dropdown-container>
+                          <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
                             {canPromoteRole ? (
                               <button
                                 type="button"
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   playClickTick();
-                                  setRoleDropdownNisn(roleDropdownNisn === member.nisn ? null : member.nisn);
-                                  setStatusDropdownNisn(null);
+                                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                  if (dropdownAnchor?.type === 'role' && dropdownAnchor?.member.nisn === member.nisn) {
+                                    setDropdownAnchor(null);
+                                  } else {
+                                    setDropdownAnchor({
+                                      top: rect.top,
+                                      bottom: rect.bottom,
+                                      left: rect.left,
+                                      right: rect.right,
+                                      member,
+                                      type: 'role'
+                                    });
+                                  }
                                 }}
                                 className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border transition cursor-pointer active:scale-95 shadow-2xs ${
                                   roleBadge.badgeClass
@@ -1645,34 +1661,6 @@ export const MembersTab: React.FC<MembersTabProps> = ({
                                 <span>{roleBadge.icon} {roleBadge.label}</span>
                               </span>
                             )}
-
-                            {canPromoteRole && roleDropdownNisn === member.nisn && (
-                              <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl border border-slate-200 shadow-2xl p-1 z-40 space-y-0.5 animate-in fade-in zoom-in-95 duration-100 text-left">
-                                <div className="px-2 py-1 text-[9px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 mb-0.5">
-                                  {isEn ? 'Assign Club Role:' : 'Pilih Jabatan / Role:'}
-                                </div>
-                                {ROLE_OPTIONS.map((opt) => (
-                                  <button
-                                    key={opt.id}
-                                    type="button"
-                                    onClick={(e) => handleQuickRoleChange(member, opt.id, e)}
-                                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                                      roleBadge.id === opt.id
-                                        ? 'bg-indigo-50 text-indigo-900 font-bold'
-                                        : 'text-slate-700 hover:bg-slate-50'
-                                    }`}
-                                  >
-                                    <span className="flex items-center gap-1.5 truncate">
-                                      <span>{opt.icon}</span>
-                                      <span className="truncate">{opt.label}</span>
-                                    </span>
-                                    {roleBadge.id === opt.id && (
-                                      <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                                    )}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
                           </div>
                         );
                       })()}
@@ -1682,9 +1670,22 @@ export const MembersTab: React.FC<MembersTabProps> = ({
                         {canEditMember ? (
                           <button
                             type="button"
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               playClickTick();
-                              setStatusDropdownNisn(statusDropdownNisn === member.nisn ? null : member.nisn);
+                              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                              if (dropdownAnchor?.type === 'status' && dropdownAnchor?.member.nisn === member.nisn) {
+                                setDropdownAnchor(null);
+                              } else {
+                                setDropdownAnchor({
+                                  top: rect.top,
+                                  bottom: rect.bottom,
+                                  left: rect.left,
+                                  right: rect.right,
+                                  member,
+                                  type: 'status'
+                                });
+                              }
                             }}
                             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border transition cursor-pointer active:scale-95 shadow-2xs ${
                               currentStatus === 'Keluar'
@@ -1717,41 +1718,6 @@ export const MembersTab: React.FC<MembersTabProps> = ({
                             }`} />
                             <span>{currentStatus === 'Aktif' ? 'Active' : currentStatus === 'Keluar' ? 'Resigned' : currentStatus}</span>
                           </span>
-                        )}
-
-                        {canEditMember && statusDropdownNisn === member.nisn && (
-                          <div className="absolute right-0 top-full mt-1 w-32 bg-white rounded-xl border border-slate-200 shadow-xl p-1 z-30 space-y-0.5 animate-in fade-in zoom-in-95 duration-100 text-left">
-                            <button
-                              type="button"
-                              onClick={() => handleQuickStatusChange(member, 'Aktif')}
-                              className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                                currentStatus === 'Aktif' ? 'bg-emerald-50 text-emerald-800 font-bold' : 'text-slate-700 hover:bg-slate-50'
-                              }`}
-                            >
-                              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                              <span>Active</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleQuickStatusChange(member, 'Keluar')}
-                              className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                                currentStatus === 'Keluar' ? 'bg-rose-50 text-rose-800 font-bold' : 'text-slate-700 hover:bg-slate-50'
-                              }`}
-                            >
-                              <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
-                              <span>Resigned</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleQuickStatusChange(member, 'Alumni')}
-                              className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                                currentStatus === 'Alumni' ? 'bg-purple-50 text-purple-800 font-bold' : 'text-slate-700 hover:bg-slate-50'
-                              }`}
-                            >
-                              <span className="w-2 h-2 rounded-full bg-purple-500 shrink-0" />
-                              <span>Alumni</span>
-                            </button>
-                          </div>
                         )}
                       </div>
                     </div>
@@ -2893,17 +2859,25 @@ export const MembersTab: React.FC<MembersTabProps> = ({
           {dropdownAnchor.type === 'action' && (() => {
             const member = dropdownAnchor.member;
             const spaceBelow = window.innerHeight - dropdownAnchor.bottom;
-            const isUpwards = spaceBelow < 320;
+            const spaceAbove = dropdownAnchor.top;
+            const isUpwards = spaceBelow < 380 && spaceAbove > spaceBelow;
+            const calculatedMaxHeight = isUpwards 
+              ? Math.max(160, Math.min(420, spaceAbove - 24))
+              : Math.max(160, Math.min(420, spaceBelow - 24));
+
             return (
               <div
+                data-portal-dropdown="true"
                 style={{
                   position: 'fixed',
-                  top: isUpwards ? undefined : `${dropdownAnchor.bottom + 4}px`,
-                  bottom: isUpwards ? `${window.innerHeight - dropdownAnchor.top + 4}px` : undefined,
-                  right: `${Math.max(12, window.innerWidth - dropdownAnchor.right)}px`,
+                  top: isUpwards ? undefined : `${dropdownAnchor.bottom + 6}px`,
+                  bottom: isUpwards ? `${window.innerHeight - dropdownAnchor.top + 6}px` : undefined,
+                  right: `${Math.max(12, Math.min(window.innerWidth - 80, window.innerWidth - dropdownAnchor.right))}px`,
+                  maxHeight: `${calculatedMaxHeight}px`,
+                  overflowY: 'auto',
                   zIndex: 99999,
                 }}
-                className="w-52 bg-white rounded-xl border border-slate-200 shadow-2xl p-1.5 space-y-0.5 text-left animate-in fade-in zoom-in-95 duration-100 font-sans"
+                className="w-56 bg-white rounded-xl border border-slate-200 shadow-2xl p-1.5 space-y-0.5 text-left animate-in fade-in zoom-in-95 duration-100 font-sans custom-scrollbar"
                 onClick={(e) => e.stopPropagation()}
               >
                 <button
@@ -3033,18 +3007,25 @@ export const MembersTab: React.FC<MembersTabProps> = ({
             const member = dropdownAnchor.member;
             const currentStatus = member.status || 'Aktif';
             const spaceBelow = window.innerHeight - dropdownAnchor.bottom;
-            const isUpwards = spaceBelow < 160;
+            const spaceAbove = dropdownAnchor.top;
+            const isUpwards = spaceBelow < 180 && spaceAbove > spaceBelow;
+            const calculatedMaxHeight = isUpwards 
+              ? Math.max(120, Math.min(220, spaceAbove - 20))
+              : Math.max(120, Math.min(220, spaceBelow - 20));
 
             return (
               <div
+                data-portal-dropdown="true"
                 style={{
                   position: 'fixed',
-                  top: isUpwards ? undefined : `${dropdownAnchor.bottom + 4}px`,
-                  bottom: isUpwards ? `${window.innerHeight - dropdownAnchor.top + 4}px` : undefined,
-                  left: `${dropdownAnchor.left}px`,
+                  top: isUpwards ? undefined : `${dropdownAnchor.bottom + 6}px`,
+                  bottom: isUpwards ? `${window.innerHeight - dropdownAnchor.top + 6}px` : undefined,
+                  left: `${Math.max(12, Math.min(window.innerWidth - 160, dropdownAnchor.left))}px`,
+                  maxHeight: `${calculatedMaxHeight}px`,
+                  overflowY: 'auto',
                   zIndex: 99999,
                 }}
-                className="w-36 bg-white rounded-xl border border-slate-200 shadow-2xl p-1 space-y-0.5 text-left animate-in fade-in zoom-in-95 duration-100 font-sans"
+                className="w-36 bg-white rounded-xl border border-slate-200 shadow-2xl p-1 space-y-0.5 text-left animate-in fade-in zoom-in-95 duration-100 font-sans custom-scrollbar"
                 onClick={(e) => e.stopPropagation()}
               >
                 <button
@@ -3112,18 +3093,25 @@ export const MembersTab: React.FC<MembersTabProps> = ({
             const member = dropdownAnchor.member;
             const currentRole = member.jabatan || 'member';
             const spaceBelow = window.innerHeight - dropdownAnchor.bottom;
-            const isUpwards = spaceBelow < 280;
+            const spaceAbove = dropdownAnchor.top;
+            const isUpwards = spaceBelow < 320 && spaceAbove > spaceBelow;
+            const calculatedMaxHeight = isUpwards 
+              ? Math.max(160, Math.min(360, spaceAbove - 24))
+              : Math.max(160, Math.min(360, spaceBelow - 24));
 
             return (
               <div
+                data-portal-dropdown="true"
                 style={{
                   position: 'fixed',
-                  top: isUpwards ? undefined : `${dropdownAnchor.bottom + 4}px`,
-                  bottom: isUpwards ? `${window.innerHeight - dropdownAnchor.top + 4}px` : undefined,
-                  left: `${dropdownAnchor.left}px`,
+                  top: isUpwards ? undefined : `${dropdownAnchor.bottom + 6}px`,
+                  bottom: isUpwards ? `${window.innerHeight - dropdownAnchor.top + 6}px` : undefined,
+                  left: `${Math.max(12, Math.min(window.innerWidth - 240, dropdownAnchor.left))}px`,
+                  maxHeight: `${calculatedMaxHeight}px`,
+                  overflowY: 'auto',
                   zIndex: 99999,
                 }}
-                className="w-56 bg-white rounded-xl border border-slate-200 shadow-2xl p-1.5 space-y-0.5 text-left animate-in fade-in zoom-in-95 duration-100 font-sans"
+                className="w-56 bg-white rounded-xl border border-slate-200 shadow-2xl p-1.5 space-y-0.5 text-left animate-in fade-in zoom-in-95 duration-100 font-sans custom-scrollbar"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 mb-1">
