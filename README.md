@@ -190,13 +190,22 @@ ADMIN_PASSWORD=your_secure_admin_password_min_12_chars
 SESSION_SECRET=replace_with_32_plus_random_characters_for_session_signing
 
 # ==============================================================================
-# SUPABASE DATABASE & AUTHENTICATION CONFIGURATION
+# SUPABASE DATABASE & AUTHENTICATION CONFIGURATION (OPTIONAL / CLOUD)
 # ==============================================================================
 # Obtain from: Supabase Dashboard -> Project Settings -> API -> Project URL
 VITE_SUPABASE_URL=https://your-project-id.supabase.co
 
 # Obtain from: Supabase Dashboard -> Project Settings -> API -> anon public key
 VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# ==============================================================================
+# MYSQL DATABASE CONFIGURATION (CPANEL / DOMAINESIA / SHARED HOSTING)
+# ==============================================================================
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=robotakman2kotbek
+DB_USER=robotakman2kotbek
+DB_PASSWORD=robodih
 ```
 
 ### Server vs. Client Variable Propagation
@@ -210,6 +219,9 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 | `SESSION_SECRET` | Backend (`api/_auth.ts`) | *Random per process if unset* | Persistent secret for HMAC-SHA256 `HttpOnly` cookie verification |
 | `VITE_SUPABASE_URL` | Frontend (`supabase.ts`) | *Empty* | Supabase cloud endpoint URL |
 | `VITE_SUPABASE_ANON_KEY` | Frontend (`supabase.ts`) | *Empty* | Supabase anonymous API key for queries and auth |
+| `DB_HOST` / `DB_PORT` | Backend (`api.php`) | `localhost` / `3306` | MySQL host & port on cPanel hosting |
+| `DB_NAME` / `DB_USER` | Backend (`api.php`) | `robotakman2kotbek` | MySQL database name & user credentials |
+| `DB_PASSWORD` | Backend (`api.php`) | `robodih` | MySQL database access password |
 
 > ⚠️ **Important Security Note**: Never commit the `.env` file with production secrets to public version control. Keep `.env` listed in `.gitignore`.
 
@@ -458,6 +470,22 @@ docker run -d \
   --env-file .env \
   roboticman2
 ```
+
+### Option 3: cPanel / Domainesia Shared Hosting (Apache + MySQL via `api.php`)
+
+Deploy `roboman2` on standard cPanel shared hosting (e.g., Domainesia, Niagahoster, Hostinger cPanel):
+
+1. **Database Setup**:
+   - Open cPanel ➔ **MySQL Databases**.
+   - Create database & user (e.g., `robotakman2kotbek` or `mankota1_robotik`).
+   - Open **phpMyAdmin**, select the database, and click **Import** ➔ choose `database_mysql.sql`.
+2. **Web Bundle Upload**:
+   - Compile production assets locally: `npm run build`.
+   - Upload the contents of the `dist/` directory (or extract `roboman2-dist-cpanel.zip`) into your cPanel `public_html` directory via File Manager or FTP.
+3. **Automated Dual-Sync Architecture**:
+   - The included `public/api.php` automatically connects to MySQL `localhost` with self-healing table verification.
+   - The included `.htaccess` automatically routes all React SPA URLs to `index.html` preventing 404 errors on page refresh.
+   - Frontend interactions (member registrations, attendance check-ins, cash entries) automatically sync in real-time to both the MySQL database and cloud storage.
 
 ---
 

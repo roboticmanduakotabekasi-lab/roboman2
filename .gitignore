@@ -46,3 +46,4 @@ bun.lock
 
 # Export ZIP archive
 roboman2-web-project.zip
+*.zip
