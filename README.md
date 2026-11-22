@@ -44,7 +44,7 @@ An enterprise-grade, responsive, and secure club management platform designed sp
 | - Laboratory Attendance Engine          | - Challenges & Assignment Submissions   |
 | - Club Treasury & Monthly Dues Matrix   | - Personal Attendance Recaps            |
 | - Curriculum, Challenges & Grading      | - Official Announcements Feed           |
-| - Academic Calendar & Workshop Agenda   | - Club ID Card Generator with QR Code   |
+| - Academic Calendar & Workshop Agenda   | - Attendance Recaps & Activity Feed     |
 | - Role Access Control (RBAC) & SOP      | - Profile & Account Settings            |
 +-----------------------------------------+-----------------------------------------+
 |                  Persistence & Realtime Synchronization Layer                    |
@@ -509,7 +509,7 @@ Full column specifications, formatting rules, and validation guides are document
 
 ### 1. Member Directory & Roster Management
 - **Universal Import**: Import rosters from CSV or Excel (`.xlsx`) files with auto-detection of column headers.
-- **Student ID Cards**: Generate individual membership cards featuring dynamic QR codes and student credentials.
+- **Student Profile & Roster**: Comprehensive student member profiles with department/division mapping, contact details, and status tracking.
 - **Export Capabilities**: Export filtered rosters to formatted PDF tables or spreadsheet files.
 
 ### 2. Daily Attendance Engine
