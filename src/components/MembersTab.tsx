@@ -1777,7 +1777,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
             </div>
 
             {/* DESKTOP TABLE VIEW: For Tablets and Desktop (>= 768px) */}
-            <div className="hidden md:block overflow-x-auto w-full">
+            <div className="hidden md:block overflow-x-auto w-full min-h-[380px] pb-16">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-500 font-bold text-[11px] uppercase tracking-wider bg-[#F8FAFC]">
@@ -1891,6 +1891,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
                     const roleBadge = getRoleBadgeMeta(member);
 
                     const { date: formattedDate, time: formattedTime } = formatMemberTimestamp(member.timestamp);
+                    const isNearBottom = index >= Math.max(1, paginatedMembers.length - 2);
 
                     return (
                       <tr 
@@ -1976,8 +1977,9 @@ export const MembersTab: React.FC<MembersTabProps> = ({
                                     type="button"
                                     onClick={() => {
                                       playClickTick();
-                                      setRoleDropdownNisn(roleDropdownNisn === member.nisn ? null : member.nisn);
+                                      setActiveActionMenuId(null);
                                       setStatusDropdownNisn(null);
+                                      setRoleDropdownNisn(roleDropdownNisn === member.nisn ? null : member.nisn);
                                     }}
                                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer hover:shadow-xs active:scale-95 ${
                                       roleBadge.badgeClass
@@ -2008,7 +2010,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
                             </span>
 
                             {canPromoteRole && roleDropdownNisn === member.nisn && (
-                              <div className="absolute left-0 top-full mt-1 w-52 bg-white rounded-xl border border-slate-200 shadow-2xl p-1 z-40 space-y-0.5 animate-in fade-in zoom-in-95 duration-100 text-left">
+                              <div className={`absolute left-0 ${isNearBottom ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} w-52 bg-white rounded-xl border border-slate-200 shadow-2xl p-1 z-50 space-y-0.5 animate-in fade-in zoom-in-95 duration-100 text-left`}>
                                 <div className="px-2 py-1 text-[9px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 mb-0.5">
                                   {isEn ? 'Assign Club Role:' : 'Pilih Jabatan / Role:'}
                                 </div>
@@ -2075,6 +2077,8 @@ export const MembersTab: React.FC<MembersTabProps> = ({
                                 type="button"
                                 onClick={() => {
                                   playClickTick();
+                                  setActiveActionMenuId(null);
+                                  setRoleDropdownNisn(null);
                                   setStatusDropdownNisn(statusDropdownNisn === member.nisn ? null : member.nisn);
                                 }}
                                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border transition cursor-pointer hover:shadow-xs active:scale-95 ${
@@ -2111,7 +2115,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
                             )}
 
                             {canEditMember && statusDropdownNisn === member.nisn && (
-                              <div className="absolute left-0 top-full mt-1 w-32 bg-white rounded-xl border border-slate-200 shadow-xl p-1 z-30 space-y-0.5 animate-in fade-in zoom-in-95 duration-100 text-left">
+                              <div className={`absolute left-0 ${isNearBottom ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} w-32 bg-white rounded-xl border border-slate-200 shadow-2xl p-1 z-50 space-y-0.5 animate-in fade-in zoom-in-95 duration-100 text-left`}>
                                 <button
                                   type="button"
                                   onClick={() => handleQuickStatusChange(member, 'Aktif')}
@@ -2164,6 +2168,8 @@ export const MembersTab: React.FC<MembersTabProps> = ({
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                setStatusDropdownNisn(null);
+                                setRoleDropdownNisn(null);
                                 setActiveActionMenuId(activeActionMenuId === member.nisn ? null : member.nisn);
                               }}
                               className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition cursor-pointer"
@@ -2173,7 +2179,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
                             </button>
 
                             {activeActionMenuId === member.nisn && (
-                              <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl border border-slate-200 shadow-xl p-1 z-30 space-y-0.5 text-left animate-in fade-in zoom-in-95 duration-100">
+                              <div className={`absolute right-0 ${isNearBottom ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} w-48 bg-white rounded-xl border border-slate-200 shadow-2xl p-1 z-50 space-y-0.5 text-left animate-in fade-in zoom-in-95 duration-100`}>
                                 <button
                                   type="button"
                                   onClick={() => {
