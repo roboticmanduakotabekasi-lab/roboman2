@@ -14,7 +14,7 @@ export interface Translations {
   myDues: string;
   tasksAndChallenges: string;
   activitySchedule: string;
-  
+
   // Navigation Descriptions
   descDashboard: string;
   descMembers: string;
@@ -482,8 +482,8 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType>({
   language: 'en',
-  setLanguage: () => {},
-  toggleLanguage: () => {},
+  setLanguage: () => { },
+  toggleLanguage: () => { },
   t: DICTIONARY.en,
 });
 
@@ -503,7 +503,7 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setLanguageState(lang);
     try {
       localStorage.setItem('robotics_language', lang);
-    } catch {}
+    } catch { }
   };
 
   const toggleLanguage = () => {

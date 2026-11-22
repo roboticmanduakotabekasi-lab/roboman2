@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Search, 
   UserPlus, 
@@ -204,6 +205,24 @@ export const MembersTab: React.FC<MembersTabProps> = ({
   const [isExportDropdownOpen, setIsExportDropdownOpen] = useState<boolean>(false);
   const [activeActionMenuId, setActiveActionMenuId] = useState<string | null>(null);
   const [isRolloverOpen, setIsRolloverOpen] = useState<boolean>(false);
+  const [dropdownAnchor, setDropdownAnchor] = useState<{
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+    member: Member;
+    type: 'action' | 'status' | 'role';
+  } | null>(null);
+
+  useEffect(() => {
+    const handleClose = () => setDropdownAnchor(null);
+    window.addEventListener('scroll', handleClose, true);
+    window.addEventListener('resize', handleClose);
+    return () => {
+      window.removeEventListener('scroll', handleClose, true);
+      window.removeEventListener('resize', handleClose);
+    };
+  }, []);
 
   const isSuperAdmin = Boolean(
     session && (isHeadAdmin(session) || getCanonicalRole(session) === 'admin')
@@ -1975,11 +1994,22 @@ export const MembersTab: React.FC<MembersTabProps> = ({
                                 return (
                                   <button
                                     type="button"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation();
                                       playClickTick();
-                                      setActiveActionMenuId(null);
-                                      setStatusDropdownNisn(null);
-                                      setRoleDropdownNisn(roleDropdownNisn === member.nisn ? null : member.nisn);
+                                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                      if (dropdownAnchor?.type === 'role' && dropdownAnchor?.member.nisn === member.nisn) {
+                                        setDropdownAnchor(null);
+                                      } else {
+                                        setDropdownAnchor({
+                                          top: rect.top,
+                                          bottom: rect.bottom,
+                                          left: rect.left,
+                                          right: rect.right,
+                                          member,
+                                          type: 'role'
+                                        });
+                                      }
                                     }}
                                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer hover:shadow-xs active:scale-95 ${
                                       roleBadge.badgeClass
@@ -2008,34 +2038,6 @@ export const MembersTab: React.FC<MembersTabProps> = ({
                             <span className="text-[10px] text-slate-400 block mt-1 font-medium">
                               {roleBadge.isExecutive ? (isEn ? 'Executive Board' : 'Pengurus Inti') : (isEn ? 'General Member' : 'Anggota Biasa')}
                             </span>
-
-                            {canPromoteRole && roleDropdownNisn === member.nisn && (
-                              <div className={`absolute left-0 ${isNearBottom ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} w-52 bg-white rounded-xl border border-slate-200 shadow-2xl p-1 z-50 space-y-0.5 animate-in fade-in zoom-in-95 duration-100 text-left`}>
-                                <div className="px-2 py-1 text-[9px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 mb-0.5">
-                                  {isEn ? 'Assign Club Role:' : 'Pilih Jabatan / Role:'}
-                                </div>
-                                {ROLE_OPTIONS.map((opt) => (
-                                  <button
-                                    key={opt.id}
-                                    type="button"
-                                    onClick={(e) => handleQuickRoleChange(member, opt.id, e)}
-                                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                                      roleBadge.id === opt.id
-                                        ? 'bg-indigo-50 text-indigo-900 font-bold'
-                                        : 'text-slate-700 hover:bg-slate-50'
-                                    }`}
-                                  >
-                                    <span className="flex items-center gap-1.5 truncate">
-                                      <span>{opt.icon}</span>
-                                      <span className="truncate">{opt.label}</span>
-                                    </span>
-                                    {roleBadge.id === opt.id && (
-                                      <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                                    )}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
                           </div>
                         </td>
 
@@ -2075,11 +2077,22 @@ export const MembersTab: React.FC<MembersTabProps> = ({
                             {canEditMember ? (
                               <button
                                 type="button"
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   playClickTick();
-                                  setActiveActionMenuId(null);
-                                  setRoleDropdownNisn(null);
-                                  setStatusDropdownNisn(statusDropdownNisn === member.nisn ? null : member.nisn);
+                                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                  if (dropdownAnchor?.type === 'status' && dropdownAnchor?.member.nisn === member.nisn) {
+                                    setDropdownAnchor(null);
+                                  } else {
+                                    setDropdownAnchor({
+                                      top: rect.top,
+                                      bottom: rect.bottom,
+                                      left: rect.left,
+                                      right: rect.right,
+                                      member,
+                                      type: 'status'
+                                    });
+                                  }
                                 }}
                                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border transition cursor-pointer hover:shadow-xs active:scale-95 ${
                                   currentStatus === 'Keluar'
@@ -2113,41 +2126,6 @@ export const MembersTab: React.FC<MembersTabProps> = ({
                                 <span>{currentStatus === 'Aktif' ? (isEn ? 'Active' : 'Aktif') : currentStatus === 'Keluar' ? (isEn ? 'Resigned' : 'Keluar') : currentStatus}</span>
                               </span>
                             )}
-
-                            {canEditMember && statusDropdownNisn === member.nisn && (
-                              <div className={`absolute left-0 ${isNearBottom ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} w-32 bg-white rounded-xl border border-slate-200 shadow-2xl p-1 z-50 space-y-0.5 animate-in fade-in zoom-in-95 duration-100 text-left`}>
-                                <button
-                                  type="button"
-                                  onClick={() => handleQuickStatusChange(member, 'Aktif')}
-                                  className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                                    currentStatus === 'Aktif' ? 'bg-emerald-50 text-emerald-800 font-bold' : 'text-slate-700 hover:bg-slate-50'
-                                  }`}
-                                >
-                                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                                  <span>{isEn ? 'Active' : 'Aktif'}</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleQuickStatusChange(member, 'Keluar')}
-                                  className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                                    currentStatus === 'Keluar' ? 'bg-rose-50 text-rose-800 font-bold' : 'text-slate-700 hover:bg-slate-50'
-                                  }`}
-                                >
-                                  <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
-                                  <span>{isEn ? 'Resigned' : 'Keluar'}</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleQuickStatusChange(member, 'Alumni')}
-                                  className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                                    currentStatus === 'Alumni' ? 'bg-purple-50 text-purple-800 font-bold' : 'text-slate-700 hover:bg-slate-50'
-                                  }`}
-                                >
-                                  <span className="w-2 h-2 rounded-full bg-purple-500 shrink-0" />
-                                  <span>Alumni</span>
-                                </button>
-                              </div>
-                            )}
                           </div>
                         </td>
 
@@ -2162,131 +2140,31 @@ export const MembersTab: React.FC<MembersTabProps> = ({
                         </td>
 
                         {/* AKSI */}
-                        <td className="py-3.5 px-4 text-right" data-dropdown-container>
-                          <div className="relative inline-block text-left">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setStatusDropdownNisn(null);
-                                setRoleDropdownNisn(null);
-                                setActiveActionMenuId(activeActionMenuId === member.nisn ? null : member.nisn);
-                              }}
-                              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition cursor-pointer"
-                              title="Actions Menu"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </button>
-
-                            {activeActionMenuId === member.nisn && (
-                              <div className={`absolute right-0 ${isNearBottom ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} w-48 bg-white rounded-xl border border-slate-200 shadow-2xl p-1 z-50 space-y-0.5 text-left animate-in fade-in zoom-in-95 duration-100`}>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setActiveActionMenuId(null);
-                                    onOpenDetailModal(member);
-                                  }}
-                                  className="w-full px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-100 rounded-lg flex items-center gap-2 cursor-pointer"
-                                >
-                                  <Eye className="w-3.5 h-3.5 text-slate-400" />
-                                  <span>{isEn ? 'View Details' : 'Lihat Detail'}</span>
-                                </button>
-                                {canEditMember && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setActiveActionMenuId(null);
-                                      onOpenEditModal(member);
-                                    }}
-                                    className="w-full px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-100 rounded-lg flex items-center gap-2 cursor-pointer"
-                                  >
-                                    <Edit className="w-3.5 h-3.5 text-slate-400" />
-                                    <span>{isEn ? 'Edit Bio & Contact' : 'Edit Biodata Siswa'}</span>
-                                  </button>
-                                )}
-
-                                {/* Direct 1-Click Role Changer inside Menu */}
-                                {canPromoteRole && (
-                                  <div className="border-t border-slate-100 my-1 pt-1">
-                                    <div className="px-2 py-0.5 text-[10px] font-bold text-indigo-800 uppercase tracking-wider flex items-center justify-between">
-                                      <span>{isEn ? 'Assign Role:' : 'Pilih Jabatan:'}</span>
-                                      <span className="text-[9px] font-mono text-slate-400 truncate max-w-[80px]">{getRoleBadgeMeta(member.jabatan).label}</span>
-                                    </div>
-                                    <div className="max-h-36 overflow-y-auto space-y-0.5">
-                                      {ROLE_OPTIONS.map((opt) => (
-                                        <button
-                                          key={opt.id}
-                                          type="button"
-                                          onClick={(e) => handleQuickRoleChange(member, opt.id, e)}
-                                          className={`w-full px-2 py-1 text-xs rounded-lg flex items-center justify-between cursor-pointer transition ${
-                                            (member.jabatan || 'member') === opt.id
-                                              ? 'bg-indigo-50 text-indigo-900 font-bold'
-                                              : 'text-slate-700 hover:bg-slate-50'
-                                          }`}
-                                        >
-                                          <span className="flex items-center gap-1.5 truncate">
-                                            <span>{opt.icon}</span>
-                                            <span className="truncate">{opt.label}</span>
-                                          </span>
-                                          {(member.jabatan || 'member') === opt.id && (
-                                            <Check className="w-3 h-3 text-indigo-600 shrink-0" />
-                                          )}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {canEditMember && (
-                                  <div className="border-t border-slate-100 my-1 pt-1">
-                                    <div className="px-2 py-0.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                      {isEn ? 'Change Status:' : 'Ubah Status:'}
-                                    </div>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleQuickStatusChange(member, 'Aktif')}
-                                      className="w-full px-2.5 py-1 text-xs text-emerald-700 hover:bg-emerald-50 rounded-lg flex items-center gap-1.5 cursor-pointer"
-                                    >
-                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                                      <span>{isEn ? 'Set Active' : 'Jadikan Aktif'}</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleQuickStatusChange(member, 'Keluar')}
-                                      className="w-full px-2.5 py-1 text-xs text-rose-700 hover:bg-rose-50 rounded-lg flex items-center gap-1.5 cursor-pointer"
-                                    >
-                                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
-                                      <span>{isEn ? 'Set Resigned' : 'Jadikan Keluar'}</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleQuickStatusChange(member, 'Alumni')}
-                                      className="w-full px-2.5 py-1 text-xs text-purple-700 hover:bg-purple-50 rounded-lg flex items-center gap-1.5 cursor-pointer"
-                                    >
-                                      <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" />
-                                      <span>{isEn ? 'Set Alumni' : 'Jadikan Alumni'}</span>
-                                    </button>
-                                  </div>
-                                )}
-
-                                {canDeleteMember && (
-                                  <div className="border-t border-slate-100 my-1 pt-1">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setActiveActionMenuId(null);
-                                        setMemberToDelete(member);
-                                      }}
-                                      className="w-full px-2.5 py-1.5 text-xs text-rose-600 hover:bg-rose-50 rounded-lg flex items-center gap-2 cursor-pointer"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-                                      <span>{isEn ? 'Delete' : 'Hapus'}</span>
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
+                        <td className="py-3.5 px-4 text-right">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              playClickTick();
+                              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                              if (dropdownAnchor?.type === 'action' && dropdownAnchor?.member.nisn === member.nisn) {
+                                setDropdownAnchor(null);
+                              } else {
+                                setDropdownAnchor({
+                                  top: rect.top,
+                                  bottom: rect.bottom,
+                                  left: rect.left,
+                                  right: rect.right,
+                                  member,
+                                  type: 'action'
+                                });
+                              }
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+                            title="Actions Menu"
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
                         </td>
                       </tr>
                     );
@@ -2999,6 +2877,289 @@ export const MembersTab: React.FC<MembersTabProps> = ({
           playSuccessChime();
         }}
       />
+
+      {/* Global Portal Dropdown: Rendered directly into document.body to prevent any overflow/clipping bugs */}
+      {dropdownAnchor && typeof document !== 'undefined' && createPortal(
+        <>
+          <div
+            className="fixed inset-0 z-[99998] bg-transparent cursor-default"
+            onClick={(e) => {
+              e.stopPropagation();
+              setDropdownAnchor(null);
+            }}
+          />
+
+          {/* 1. Action Menu Dropdown */}
+          {dropdownAnchor.type === 'action' && (() => {
+            const member = dropdownAnchor.member;
+            const spaceBelow = window.innerHeight - dropdownAnchor.bottom;
+            const isUpwards = spaceBelow < 320;
+            return (
+              <div
+                style={{
+                  position: 'fixed',
+                  top: isUpwards ? undefined : `${dropdownAnchor.bottom + 4}px`,
+                  bottom: isUpwards ? `${window.innerHeight - dropdownAnchor.top + 4}px` : undefined,
+                  right: `${Math.max(12, window.innerWidth - dropdownAnchor.right)}px`,
+                  zIndex: 99999,
+                }}
+                className="w-52 bg-white rounded-xl border border-slate-200 shadow-2xl p-1.5 space-y-0.5 text-left animate-in fade-in zoom-in-95 duration-100 font-sans"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDropdownAnchor(null);
+                    onOpenDetailModal(member);
+                  }}
+                  className="w-full px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-100 rounded-lg flex items-center gap-2 cursor-pointer transition font-medium"
+                >
+                  <Eye className="w-3.5 h-3.5 text-slate-400" />
+                  <span>{isEn ? 'View Details' : 'Lihat Detail'}</span>
+                </button>
+                {canEditMember && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDropdownAnchor(null);
+                      onOpenEditModal(member);
+                    }}
+                    className="w-full px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-100 rounded-lg flex items-center gap-2 cursor-pointer transition font-medium"
+                  >
+                    <Edit className="w-3.5 h-3.5 text-slate-400" />
+                    <span>{isEn ? 'Edit Bio & Contact' : 'Edit Biodata Siswa'}</span>
+                  </button>
+                )}
+
+                {/* Direct 1-Click Role Changer inside Menu */}
+                {canPromoteRole && (
+                  <div className="border-t border-slate-100 my-1 pt-1">
+                    <div className="px-2 py-0.5 text-[10px] font-bold text-indigo-800 uppercase tracking-wider flex items-center justify-between">
+                      <span>{isEn ? 'Assign Role:' : 'Pilih Jabatan:'}</span>
+                      <span className="text-[9px] font-mono text-slate-400 truncate max-w-[80px]">
+                        {getRoleBadgeMeta(member.jabatan).label}
+                      </span>
+                    </div>
+                    <div className="max-h-36 overflow-y-auto space-y-0.5">
+                      {ROLE_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={(e) => {
+                            setDropdownAnchor(null);
+                            handleQuickRoleChange(member, opt.id, e);
+                          }}
+                          className={`w-full px-2 py-1 text-xs rounded-lg flex items-center justify-between cursor-pointer transition ${
+                            (member.jabatan || 'member') === opt.id
+                              ? 'bg-indigo-50 text-indigo-900 font-bold'
+                              : 'text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className="flex items-center gap-1.5 truncate">
+                            <span>{opt.icon}</span>
+                            <span className="truncate">{opt.label}</span>
+                          </span>
+                          {(member.jabatan || 'member') === opt.id && (
+                            <Check className="w-3 h-3 text-indigo-600 shrink-0" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {canEditMember && (
+                  <div className="border-t border-slate-100 my-1 pt-1">
+                    <div className="px-2 py-0.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      {isEn ? 'Change Status:' : 'Ubah Status:'}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        setDropdownAnchor(null);
+                        handleQuickStatusChange(member, 'Aktif', e);
+                      }}
+                      className="w-full px-2.5 py-1 text-xs text-emerald-700 hover:bg-emerald-50 rounded-lg flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                      <span>{isEn ? 'Set Active' : 'Jadikan Aktif'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        setDropdownAnchor(null);
+                        handleQuickStatusChange(member, 'Keluar', e);
+                      }}
+                      className="w-full px-2.5 py-1 text-xs text-rose-700 hover:bg-rose-50 rounded-lg flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                      <span>{isEn ? 'Set Resigned' : 'Jadikan Keluar'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        setDropdownAnchor(null);
+                        handleQuickStatusChange(member, 'Alumni', e);
+                      }}
+                      className="w-full px-2.5 py-1 text-xs text-purple-700 hover:bg-purple-50 rounded-lg flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" />
+                      <span>{isEn ? 'Set Alumni' : 'Jadikan Alumni'}</span>
+                    </button>
+                  </div>
+                )}
+
+                {canDeleteMember && (
+                  <div className="border-t border-slate-100 my-1 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDropdownAnchor(null);
+                        setMemberToDelete(member);
+                      }}
+                      className="w-full px-2.5 py-1.5 text-xs text-rose-600 hover:bg-rose-50 rounded-lg flex items-center gap-2 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                      <span>{isEn ? 'Delete' : 'Hapus'}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* 2. Status Dropdown */}
+          {dropdownAnchor.type === 'status' && (() => {
+            const member = dropdownAnchor.member;
+            const currentStatus = member.status || 'Aktif';
+            const spaceBelow = window.innerHeight - dropdownAnchor.bottom;
+            const isUpwards = spaceBelow < 160;
+
+            return (
+              <div
+                style={{
+                  position: 'fixed',
+                  top: isUpwards ? undefined : `${dropdownAnchor.bottom + 4}px`,
+                  bottom: isUpwards ? `${window.innerHeight - dropdownAnchor.top + 4}px` : undefined,
+                  left: `${dropdownAnchor.left}px`,
+                  zIndex: 99999,
+                }}
+                className="w-36 bg-white rounded-xl border border-slate-200 shadow-2xl p-1 space-y-0.5 text-left animate-in fade-in zoom-in-95 duration-100 font-sans"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    setDropdownAnchor(null);
+                    handleQuickStatusChange(member, 'Aktif', e);
+                  }}
+                  className={`w-full px-2.5 py-1.5 text-xs rounded-lg flex items-center justify-between cursor-pointer transition ${
+                    currentStatus === 'Aktif'
+                      ? 'bg-emerald-50 text-emerald-800 font-bold'
+                      : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <span>{isEn ? 'Active' : 'Aktif'}</span>
+                  </span>
+                  {currentStatus === 'Aktif' && <Check className="w-3 h-3 text-emerald-600" />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    setDropdownAnchor(null);
+                    handleQuickStatusChange(member, 'Keluar', e);
+                  }}
+                  className={`w-full px-2.5 py-1.5 text-xs rounded-lg flex items-center justify-between cursor-pointer transition ${
+                    currentStatus === 'Keluar'
+                      ? 'bg-rose-50 text-rose-800 font-bold'
+                      : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-rose-500" />
+                    <span>{isEn ? 'Resigned' : 'Keluar'}</span>
+                  </span>
+                  {currentStatus === 'Keluar' && <Check className="w-3 h-3 text-rose-600" />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    setDropdownAnchor(null);
+                    handleQuickStatusChange(member, 'Alumni', e);
+                  }}
+                  className={`w-full px-2.5 py-1.5 text-xs rounded-lg flex items-center justify-between cursor-pointer transition ${
+                    currentStatus === 'Alumni'
+                      ? 'bg-purple-50 text-purple-800 font-bold'
+                      : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-purple-500" />
+                    <span>{isEn ? 'Alumni' : 'Alumni'}</span>
+                  </span>
+                  {currentStatus === 'Alumni' && <Check className="w-3 h-3 text-purple-600" />}
+                </button>
+              </div>
+            );
+          })()}
+
+          {/* 3. Role Dropdown */}
+          {dropdownAnchor.type === 'role' && (() => {
+            const member = dropdownAnchor.member;
+            const currentRole = member.jabatan || 'member';
+            const spaceBelow = window.innerHeight - dropdownAnchor.bottom;
+            const isUpwards = spaceBelow < 280;
+
+            return (
+              <div
+                style={{
+                  position: 'fixed',
+                  top: isUpwards ? undefined : `${dropdownAnchor.bottom + 4}px`,
+                  bottom: isUpwards ? `${window.innerHeight - dropdownAnchor.top + 4}px` : undefined,
+                  left: `${dropdownAnchor.left}px`,
+                  zIndex: 99999,
+                }}
+                className="w-56 bg-white rounded-xl border border-slate-200 shadow-2xl p-1.5 space-y-0.5 text-left animate-in fade-in zoom-in-95 duration-100 font-sans"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 mb-1">
+                  {isEn ? 'Assign Role' : 'Pilih Jabatan'}
+                </div>
+                <div className="max-h-60 overflow-y-auto space-y-0.5">
+                  {ROLE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={(e) => {
+                        setDropdownAnchor(null);
+                        handleQuickRoleChange(member, opt.id, e);
+                      }}
+                      className={`w-full px-2 py-1.5 text-xs rounded-lg flex items-center justify-between cursor-pointer transition ${
+                        currentRole === opt.id
+                          ? 'bg-indigo-50 text-indigo-900 font-bold'
+                          : 'text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2 truncate">
+                        <span>{opt.icon}</span>
+                        <span className="truncate">{opt.label}</span>
+                      </span>
+                      {currentRole === opt.id && (
+                        <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+        </>,
+        document.body
+      )}
 
     </div>
   );
