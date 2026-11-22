@@ -1893,6 +1893,16 @@ export async function fetchAllSupabaseData(accountUsername?: string) {
       }
     }
 
+    // Fallback: If attendance is empty, check MySQL Domainesia
+    if (attendance.length === 0) {
+      try {
+        const mysqlData = await fetchFromMySQL();
+        if (mysqlData && mysqlData.attendance && mysqlData.attendance.length > 0) {
+          attendance = mysqlData.attendance;
+        }
+      } catch {}
+    }
+
     // 3. Query cash transactions (prefer v_cash_transactions, fallback to cash_transactions)
     let cash: CashTransaction[] = [];
     let cashError: any = null;
@@ -1935,6 +1945,16 @@ export async function fetchAllSupabaseData(accountUsername?: string) {
       }
     }
 
+    // Fallback: If cash is empty, check MySQL Domainesia
+    if (cash.length === 0) {
+      try {
+        const mysqlData = await fetchFromMySQL();
+        if (mysqlData && mysqlData.cash && mysqlData.cash.length > 0) {
+          cash = mysqlData.cash;
+        }
+      } catch {}
+    }
+
     // 4. Query user accounts
     let accounts: AccountConfig[] = [];
     const accountsRes = await supa.from('user_accounts').select('*');
@@ -1970,6 +1990,23 @@ export async function fetchAllSupabaseData(accountUsername?: string) {
       rawMemberCount: membersRes.data ? membersRes.data.length : null,
     };
   } catch (err: any) {
+    // If Supabase completely unreachable or network blocked, fallback directly to MySQL Domainesia!
+    try {
+      const mysqlData = await fetchFromMySQL();
+      if (mysqlData && (mysqlData.members?.length || mysqlData.attendance?.length || mysqlData.cash?.length)) {
+        return {
+          success: true,
+          error: undefined,
+          needsSetup: false,
+          members: mysqlData.members || [],
+          attendance: mysqlData.attendance || [],
+          cash: mysqlData.cash || [],
+          accounts: [],
+          rawMemberCount: mysqlData.members ? mysqlData.members.length : 0,
+        };
+      }
+    } catch {}
+
     return {
       success: false,
       error: err.message,
