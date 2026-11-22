@@ -180,7 +180,7 @@ HOST=0.0.0.0
 # PRIMARY ADMINISTRATOR CREDENTIALS & SESSION SECURITY (SERVER-ONLY)
 # ==============================================================================
 # Master admin email used for initial authentication and verification
-ADMIN_EMAIL=roboticmanduakotabekasi@gmail.com
+ADMIN_EMAIL=roboticman2kotabekasi@gmail.com
 
 # Strong master admin password (minimum 12 characters, server-only)
 ADMIN_PASSWORD=your_secure_admin_password_min_12_chars
@@ -214,17 +214,23 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
-## 🗄️ Supabase Cloud Database Setup
+## 🗄️ Database Architecture & Setup
 
-The database uses PostgreSQL with a 3rd Normal Form (3NF) relational design.
+The platform supports both **MySQL/MariaDB** (standard for XAMPP / local evaluation) and **PostgreSQL / Supabase** (for cloud synchronization and production hosting). Pre-configured SQL files are included in the repository root:
 
-### 1. Create a Supabase Project
+* 🐬 **`database_mysql.sql`**: Full schema and seed data for **MySQL / MariaDB / XAMPP / phpMyAdmin**.
+* 🐘 **`database_postgresql.sql`** (or **`schema.sql`**): Full 3rd Normal Form (3NF) relational design with Row Level Security (RLS) for **PostgreSQL / Supabase Cloud**.
+
+### Option A: MySQL / XAMPP / phpMyAdmin Setup
+1. Start Apache and MySQL in XAMPP.
+2. Open phpMyAdmin (`http://localhost/phpmyadmin`).
+3. Click **Import**, select `database_mysql.sql`, and execute.
+
+### Option B: Supabase Cloud Database Setup (PostgreSQL)
 1. Log in to [supabase.com](https://supabase.com/) and create a new project.
 2. Select your preferred region (e.g., `Singapore - ap-southeast-1` for low latency in Indonesia).
-3. Copy the **Project URL** and **anon public API Key** into your `.env` file.
-
-### 2. Execute SQL Schema
-Navigate to the **SQL Editor** tab in the Supabase Dashboard and run the schema located in `supabase_clean_schema.sql` (or `schema.sql`):
+3. Copy the **Project URL** and **anon public API Key** into your `.env` file (`VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`).
+4. In the Supabase Dashboard, open **SQL Editor**, paste the contents of `schema.sql` (or `database_postgresql.sql`), and click **Run**.
 
 ```sql
 -- 1. Members Master Table
@@ -520,6 +526,12 @@ Full column specifications, formatting rules, and validation guides are document
 - **Robotics Curriculum**: Practical assignments covering Arduino, ESP32, IoT sensors, line follower algorithms, and CAD mechanics.
 - **Student Submission Hub**: Students submit cloud links (Google Drive, GitHub, Tinkercad) and file attachments directly in `StudentAssignmentsView`.
 - **Evaluation Matrix**: Executive board and advisors award points and provide qualitative feedback in `AdminTasksGradingView`.
+
+### 5. Intelligent Analytics & Automation Algorithms
+- **Attendance Dropout & Irregularity Risk Analysis** (`src/utils/attendanceAnalytics.ts`): Automatically calculates individual attendance rates and consecutive absence streaks to flag students at risk of becoming inactive (< 70% threshold) with guided intervention recommendations.
+- **Cash Arrears & Dues Recovery Analysis** (`src/utils/cashAnalytics.ts`): Analyzes payment lags against expected dues, identifying top debtor balances and generating instant WhatsApp reminder templates for treasury managers.
+- **Fuzzy Search Engine** (`src/utils/smartSearch.ts`): Tolerates character typos, phonetic variations, and swapped letters using Levenshtein distance across member names, classes, divisions, and NISN queries.
+- **Automated Academic Rollover Engine** (`src/utils/academicRollover.ts`): Seamlessly executes batch promotion for students advancing to the next academic level (Grade X $\rightarrow$ XI $\rightarrow$ XII) and automatically graduates senior Grade XII students to verified Alumni status.
 
 ---
 
