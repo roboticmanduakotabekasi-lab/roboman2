@@ -141,32 +141,9 @@ CREATE TABLE `assignment_submissions` (
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ==============================================================================
--- DATA AWAL / SAMPLE SEED DATA
+-- INSIALISASI AKUN ADMINISTRATOR UTAMA (SIAP LOGIN)
 -- ==============================================================================
-
--- Akun Administrator Utama
 INSERT INTO `user_accounts` (`username`, `password`, `name`, `role`, `email`, `nisn`) VALUES
 ('admin', '$2b$10$vI8aWBnW3fID.ZQ4/zo1G.qytHHvUQe.1GgXkQ8k.5eJzN60Hq3qC', 'Administrator roboman2', 'Pengurus Inti', 'roboticman2kotabekasi@gmail.com', '197505121998031001')
 ON DUPLICATE KEY UPDATE `name`=VALUES(`name`);
 
--- Data Anggota Awal
-INSERT INTO `members` (`id_member`, `nisn`, `account_username`, `email`, `full_name`, `grade`, `class_room`, `gender`, `personal_phone`, `status`, `role`, `jabatan`) VALUES
-('101', '197505121998031001', 'admin', 'pembina@man2kotabekasi.sch.id', 'Drs. H. Ahmad Fauzi, M.Pd', 'Faculty', 'Advisor', 'Male', '0812-0000-0101', 'Aktif', 'pembina', 'advisor'),
-('102', '0110000099', 'admin', 'ketua@man2kotabekasi.sch.id', 'Muhammad Rayhan Pratama', 'XII', 'A', 'Male', '0812-0000-0102', 'Aktif', 'admin', 'president'),
-('103', '0110000098', 'admin', 'wakil@man2kotabekasi.sch.id', 'Fikri Haikal', 'XII', 'B', 'Male', '0812-0000-0103', 'Aktif', 'admin', 'vice_president'),
-('104', '0110000097', 'admin', 'sekretaris@man2kotabekasi.sch.id', 'Aisyah Nurul Azmi', 'XI', 'A', 'Female', '0812-0000-0104', 'Aktif', 'member', 'secretary'),
-('105', '0110000096', 'admin', 'bendahara@man2kotabekasi.sch.id', 'Nabila Putri Cahyani', 'XI', 'B', 'Female', '0812-0000-0105', 'Aktif', 'member', 'treasurer'),
-('106', '0120000001', 'admin', 'anggota1@man2kotabekasi.sch.id', 'Bintang Ramadhan', 'X', 'A', 'Male', '0812-0000-0106', 'Aktif', 'member', 'member'),
-('107', '0120000002', 'admin', 'anggota2@man2kotabekasi.sch.id', 'Citra Lestari', 'X', 'B', 'Female', '0812-0000-0107', 'Aktif', 'member', 'member')
-ON DUPLICATE KEY UPDATE `full_name`=VALUES(`full_name`);
-
--- Data Pengumuman Awal
-INSERT INTO `announcements` (`id`, `title`, `content`, `event_date`, `location`, `author_name`) VALUES
-('ann-001', 'Jadwal Latihan Rutin & Pemrograman Robot', 'Seluruh anggota divisi pemrograman dan mekanik dimohon hadir tepat waktu untuk persiapan lomba.', NOW() + INTERVAL 2 DAY, 'Workshop Robotika roboman2', 'Pengurus Ekskul')
-ON DUPLICATE KEY UPDATE `title`=VALUES(`title`);
-
--- Data Kas Masuk Awal
-INSERT INTO `cash_transactions` (`id`, `tanggal`, `id_member`, `nama_anggota`, `jenis`, `jumlah`, `keterangan`) VALUES
-('cash-001', CURDATE(), '102', 'Muhammad Rayhan Pratama', 'Masuk', 50000.00, 'Iuran Kas Anggota - Periode Baru'),
-('cash-002', CURDATE(), '103', 'Fikri Haikal', 'Masuk', 50000.00, 'Iuran Kas Anggota - Periode Baru')
-ON DUPLICATE KEY UPDATE `jumlah`=VALUES(`jumlah`);
