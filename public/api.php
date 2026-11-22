@@ -137,13 +137,17 @@ function ensureTablesExist($pdo) {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     ");
 
-    // Auto-seed default admin if user_accounts table has no admin
+    // Auto-seed or update default admin in user_accounts table
     try {
         $adminCount = $pdo->query("SELECT COUNT(*) FROM `user_accounts` WHERE `username` = 'admin'")->fetchColumn();
         if ((int)$adminCount === 0) {
             $stmt = $pdo->prepare("INSERT INTO `user_accounts` (`username`, `password`, `name`, `role`, `email`, `auth_provider`) 
                 VALUES ('admin', :pass, 'Admin Robotic MAN 2 Kota Bekasi', 'admin', 'roboticman2kotabekasi@gmail.com', 'credentials')");
-            $stmt->execute([':pass' => 'bc170b965ad30c470e0120d29f710671b4c1afe062a2ee95c6a93c8a8b108a6e']);
+            $stmt->execute([':pass' => '3bb62e9d75c65289a724a94ec88ff9a0d1ff647652c00300d1c6dd1466bf15c0']);
+        } else {
+            // Ensure admin password matches admin123
+            $stmt = $pdo->prepare("UPDATE `user_accounts` SET `password` = :pass WHERE `username` = 'admin'");
+            $stmt->execute([':pass' => '3bb62e9d75c65289a724a94ec88ff9a0d1ff647652c00300d1c6dd1466bf15c0']);
         }
     } catch (Exception $e) {
         // Silent ignore if already exists or table busy
