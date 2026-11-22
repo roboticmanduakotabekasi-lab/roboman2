@@ -12,6 +12,8 @@ interface Props {
   onConfirmRollover: (updatedMembers: Member[]) => Promise<void> | void;
 }
 
+const SECTION_OPTIONS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] as const;
+
 export const AcademicRolloverModal: React.FC<Props> = ({
   isOpen,
   onClose,
@@ -137,18 +139,23 @@ export const AcademicRolloverModal: React.FC<Props> = ({
                   <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
                   <span>
                     {isEn
-                      ? 'Grade 10 ➔ 11 Classroom: Room/section can be edited per student below, or batch applied:'
-                      : 'Siswa Kelas X ➔ XI: Rombel/jurusan baru dapat diedit per siswa di tabel, atau samakan semua:'}
+                      ? 'Grade 10 ➔ 11 Classroom: Room/section (A-H) can be customized individually or batch applied:'
+                      : 'Siswa Kelas X ➔ XI: Ruang kelas (Rentang A-H) dapat dipilih per siswa atau disamakan:'}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 w-full sm:w-auto">
-                  <input
-                    type="text"
-                    placeholder={isEn ? "e.g. 1 / MIPA 1" : "Contoh: 1 / MIPA 1"}
+                  <select
                     value={batchGrade11Room}
                     onChange={(e) => setBatchGrade11Room(e.target.value)}
-                    className="px-2.5 py-1 text-xs uppercase font-bold border border-indigo-200 rounded-lg bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full sm:w-32"
-                  />
+                    className="px-2.5 py-1 text-xs uppercase font-bold border border-indigo-200 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full sm:w-36 cursor-pointer"
+                  >
+                    <option value="">{isEn ? '-- Select Class A-H --' : '-- Pilih Rombel A-H --'}</option>
+                    {SECTION_OPTIONS.map((sec) => (
+                      <option key={sec} value={sec}>
+                        {isEn ? `Section ${sec}` : `Kelas / Rombel ${sec}`}
+                      </option>
+                    ))}
+                  </select>
                   <button
                     type="button"
                     onClick={() => {
@@ -227,18 +234,25 @@ export const AcademicRolloverModal: React.FC<Props> = ({
                             <span className="text-purple-600 font-bold">Alumni</span>
                           ) : d.actionType === 'promote_11' ? (
                             <div className="flex items-center gap-1.5">
-                              <span className="font-bold text-indigo-700 font-mono">{d.newGrade}</span>
-                              <input
-                                type="text"
+                              <span className="font-bold text-indigo-700 font-mono">{d.newGrade} -</span>
+                              <select
                                 value={effectiveRoom}
                                 onChange={(e) => {
                                   const val = e.target.value.toUpperCase();
                                   setClassRoomOverrides((prev) => ({ ...prev, [memberKey]: val }));
                                 }}
-                                placeholder="Rombel"
-                                title={isEn ? 'Section for Grade 11 (editable)' : 'Rombel Kelas 11 (dapat diubah)'}
-                                className="w-24 px-2 py-0.5 text-xs font-bold text-indigo-950 uppercase border border-indigo-300 rounded-lg bg-indigo-50/60 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 transition"
-                              />
+                                title={isEn ? 'Section for Grade 11 (A-H)' : 'Rombel Kelas 11 (Rentang A-H)'}
+                                className="px-2 py-0.5 text-xs font-bold text-indigo-950 uppercase border border-indigo-300 rounded-lg bg-indigo-50/70 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 transition cursor-pointer"
+                              >
+                                {SECTION_OPTIONS.map((sec) => (
+                                  <option key={sec} value={sec}>
+                                    {sec}
+                                  </option>
+                                ))}
+                                {!SECTION_OPTIONS.includes(effectiveRoom as any) && effectiveRoom && (
+                                  <option value={effectiveRoom}>{effectiveRoom}</option>
+                                )}
+                              </select>
                             </div>
                           ) : (
                             <div className="flex items-center gap-1.5">

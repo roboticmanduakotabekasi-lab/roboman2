@@ -257,15 +257,22 @@ export const MemberFormModal: React.FC<MemberFormModalProps> = ({
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1.5">{isEn ? 'Classroom / Section' : 'Ruang Kelas / Jurusan'}</label>
-                <input
+                <label className="block font-semibold text-slate-700 mb-1.5">{isEn ? 'Classroom / Section *' : 'Ruang Kelas / Rombel *'}</label>
+                <select
                   id="formClassRoom"
-                  type="text"
-                  placeholder={isEn ? "e.g. A, B, IPA 1" : "Contoh: A, B, IPA 1"}
                   value={formData.classRoom}
                   onChange={(e) => setFormData({ ...formData, classRoom: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 uppercase font-semibold focus:outline-none focus:bg-white focus:border-blue-600 transition"
-                />
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:bg-white focus:border-blue-600 transition"
+                >
+                  {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map((sec) => (
+                    <option key={sec} value={sec}>
+                      {isEn ? `Section ${sec}` : `Kelas / Rombel ${sec}`}
+                    </option>
+                  ))}
+                  {!['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].includes(formData.classRoom) && formData.classRoom && (
+                    <option value={formData.classRoom}>{formData.classRoom}</option>
+                  )}
+                </select>
               </div>
             </div>
 
