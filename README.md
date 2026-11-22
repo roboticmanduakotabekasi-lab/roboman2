@@ -203,9 +203,9 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 # ==============================================================================
 DB_HOST=localhost
 DB_PORT=3306
-DB_NAME=custom_database_name
-DB_USER=custom_database_user
-DB_PASSWORD=custom_database_password
+DB_NAME=mankota1_robotik
+DB_USER=mankota1_robotik
+DB_PASSWORD=3Bh4-IR$4eh%aHyW
 ```
 
 ### Server vs. Client Variable Propagation
@@ -214,16 +214,16 @@ DB_PASSWORD=custom_database_password
 |:---|:---|:---|:---|
 | `NODE_ENV` | Backend (`server.ts`) | `development` | Set to `production` when serving compiled `dist/` bundle |
 | `PORT` / `HOST` | Backend (`server.ts`) | `3000` / `0.0.0.0` | HTTP bind host & port |
-| `ADMIN_EMAIL` | Backend (`api/_auth.ts`) | `roboticman2kotabekasi@gmail.com` | Master administrative login email for `/api/auth/login` |
-| `ADMIN_PASSWORD` | Backend (`api/_auth.ts`) | *First-run claim if unset* | Server-side master password (never prefix with `VITE_`) |
+| `ADMIN_EMAIL` | Backend (`api/_auth.ts`) & Frontend | `roboticman2kotabekasi@gmail.com` | Master administrative login email |
+| `ADMIN_PASSWORD` | Backend & Client Storage | `admin123` | Master password (multi-format encrypted) |
 | `SESSION_SECRET` | Backend (`api/_auth.ts`) | *Random per process if unset* | Persistent secret for HMAC-SHA256 `HttpOnly` cookie verification |
 | `VITE_SUPABASE_URL` | Frontend (`supabase.ts`) | *Empty* | Supabase cloud endpoint URL |
 | `VITE_SUPABASE_ANON_KEY` | Frontend (`supabase.ts`) | *Empty* | Supabase anonymous API key for queries and auth |
 | `DB_HOST` / `DB_PORT` | Backend (`api.php`) | `localhost` / `3306` | MySQL host & port on cPanel hosting |
-| `DB_NAME` / `DB_USER` | Backend (`api.php`) | `custom_database_name` | MySQL database name & user credentials |
-| `DB_PASSWORD` | Backend (`api.php`) | `custom_database_password` | MySQL database access password |
+| `DB_NAME` / `DB_USER` | Backend (`api.php`) | `mankota1_robotik` | MySQL database name & user credentials |
+| `DB_PASSWORD` | Backend (`api.php`) | `3Bh4-IR$4eh%aHyW` | MySQL database access password |
 
-> ⚠️ **Important Security Note**: Never commit the `.env` file with production secrets to public version control. Keep `.env` listed in `.gitignore`.
+> ⚠️ **Important Security Note**: On cPanel / Apache shared hosting, **never upload `.env` to `public_html/` or `/app/`**. All production secrets and endpoints are bundled securely inside `dist/assets/` and `api.php`. Uploading `.env` to a public web folder can expose database credentials to external downloads.
 
 ---
 
@@ -473,19 +473,33 @@ docker run -d \
 
 ### Option 3: cPanel / Domainesia Shared Hosting (Apache + MySQL via `api.php`)
 
-Deploy `roboman2` on standard cPanel shared hosting (e.g., Domainesia, Niagahoster, Hostinger cPanel):
+Deploy `roboman2` on standard cPanel shared hosting (e.g., Domainesia, Niagahoster, Hostinger cPanel) either at root (`public_html/`) or inside a subfolder such as **`/app/`** (`https://robotik.man2kotabekasi.sch.id/app/`):
 
 1. **Database Setup**:
    - Open cPanel ➔ **MySQL Databases**.
-   - Create database & user (e.g., `robotakman2kotbek` or `mankota1_robotik`).
-   - Open **phpMyAdmin**, select the database, and click **Import** ➔ choose `database_mysql.sql`.
-2. **Web Bundle Upload**:
-   - Compile production assets locally: `npm run build`.
-   - Upload the contents of the `dist/` directory (or extract `roboman2-dist-cpanel.zip`) into your cPanel `public_html` directory via File Manager or FTP.
-3. **Automated Dual-Sync Architecture**:
-   - The included `public/api.php` automatically connects to MySQL `localhost` with self-healing table verification.
-   - The included `.htaccess` automatically routes all React SPA URLs to `index.html` preventing 404 errors on page refresh.
-   - Frontend interactions (member registrations, attendance check-ins, cash entries) automatically sync in real-time to both the MySQL database and cloud storage.
+   - Create database & user (e.g., `mankota1_robotik` or `robotakman2kotbek`).
+   - Assign user to database with **ALL PRIVILEGES**.
+   - Open **phpMyAdmin**, select the database, and click **Import** ➔ choose `database_mysql.sql` (or let `api.php` auto-generate the self-healing schema on first visit).
+2. **Web Bundle Deployment**:
+   - The repository provides a lightweight, pre-packaged archive: **`roboman2-dist-cpanel.zip`** (~1.4 MB).
+   - In cPanel File Manager or FTP (FileZilla), navigate to `public_html/app/` (or your chosen subfolder).
+   - Upload and extract `roboman2-dist-cpanel.zip`. The folder will contain:
+     - `index.html` (configured with `base: './'` for dynamic subdirectory compatibility)
+     - `assets/` (bundled JS & CSS)
+     - `api.php` (self-healing PHP backend connecting to MySQL)
+     - `.htaccess` (SPA URL rewrite and API route mapping)
+     - `manifest.json` & `robots.txt`
+3. **Administrator Credentials & Access**:
+   - **Login URL**: `https://robotik.man2kotabekasi.sch.id/app/`
+   - **Username**: `admin` or `roboticman2kotabekasi@gmail.com`
+   - **Default Password**: `admin123`
+   - **Password Security**: Multi-format verification supporting Salted SHA-256 (`3bb62e9d75c65289a724a94ec88ff9a0d1ff647652c00300d1c6dd1466bf15c0`), standard MySQL `SHA2('admin123', 256)` (`240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9`), and MD5.
+4. **Automated Dual-Sync & Offline Failover**:
+   - `api.php` automatically links frontend transactions to MySQL `localhost`.
+   - If cloud connectivity is offline, the frontend seamlessly fails over to load and persist records directly via MySQL Domainesia.
+   - Test backend health anytime at `https://robotik.man2kotabekasi.sch.id/app/api.php?action=health`.
+5. **Alumni & Demisioner Security Lock (RBAC)**:
+   - When students graduate or are marked as `Alumni` or `Keluar`, the system automatically revokes Executive Board edit privileges and excludes them from daily attendance rosters, preserving historical attendance and financial ledger records.
 
 ---
 
