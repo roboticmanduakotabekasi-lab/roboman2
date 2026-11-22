@@ -203,9 +203,9 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 # ==============================================================================
 DB_HOST=localhost
 DB_PORT=3306
-DB_NAME=robotakman2kotbek
-DB_USER=robotakman2kotbek
-DB_PASSWORD=robodih
+DB_NAME=custom_database_name
+DB_USER=custom_database_user
+DB_PASSWORD=custom_database_password
 ```
 
 ### Server vs. Client Variable Propagation
@@ -220,8 +220,8 @@ DB_PASSWORD=robodih
 | `VITE_SUPABASE_URL` | Frontend (`supabase.ts`) | *Empty* | Supabase cloud endpoint URL |
 | `VITE_SUPABASE_ANON_KEY` | Frontend (`supabase.ts`) | *Empty* | Supabase anonymous API key for queries and auth |
 | `DB_HOST` / `DB_PORT` | Backend (`api.php`) | `localhost` / `3306` | MySQL host & port on cPanel hosting |
-| `DB_NAME` / `DB_USER` | Backend (`api.php`) | `robotakman2kotbek` | MySQL database name & user credentials |
-| `DB_PASSWORD` | Backend (`api.php`) | `robodih` | MySQL database access password |
+| `DB_NAME` / `DB_USER` | Backend (`api.php`) | `custom_database_name` | MySQL database name & user credentials |
+| `DB_PASSWORD` | Backend (`api.php`) | `custom_database_password` | MySQL database access password |
 
 > ⚠️ **Important Security Note**: Never commit the `.env` file with production secrets to public version control. Keep `.env` listed in `.gitignore`.
 
