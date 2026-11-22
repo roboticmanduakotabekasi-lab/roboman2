@@ -178,7 +178,7 @@ export async function autoSyncEnvConfig(): Promise<void> {
   if (isRealEnvConfigured) return;
 
   try {
-    const res = await fetch('/api/env-config', { credentials: 'same-origin' });
+    const res = await fetch('api/env-config', { credentials: 'same-origin' });
     if (res.ok) {
       const data = await res.json();
       if (data.supabaseUrl && data.supabaseAnonKey && isValidSupabaseUrl(data.supabaseUrl) && isValidSupabaseAnonKey(data.supabaseAnonKey)) {

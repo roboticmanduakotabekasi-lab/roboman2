@@ -12,7 +12,7 @@ export async function syncAllToMySQL(
   cash: CashTransaction[]
 ): Promise<{ success: boolean; message?: string }> {
   try {
-    const res = await fetch('/api.php?action=sync_all', {
+    const res = await fetch('./api.php?action=sync_all', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ members, attendance, cash }),
@@ -29,7 +29,7 @@ export async function syncAllToMySQL(
 
 export async function syncMemberToMySQL(member: Member): Promise<void> {
   try {
-    await fetch('/api.php?action=upsert_member', {
+    await fetch('./api.php?action=upsert_member', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(member),
@@ -39,7 +39,7 @@ export async function syncMemberToMySQL(member: Member): Promise<void> {
 
 export async function deleteMemberFromMySQL(idOrNisn: string): Promise<void> {
   try {
-    await fetch('/api.php?action=delete_member', {
+    await fetch('./api.php?action=delete_member', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id_member: idOrNisn, nisn: idOrNisn }),
@@ -49,7 +49,7 @@ export async function deleteMemberFromMySQL(idOrNisn: string): Promise<void> {
 
 export async function syncAttendanceToMySQL(record: AttendanceRecord): Promise<void> {
   try {
-    await fetch('/api.php?action=upsert_attendance', {
+    await fetch('./api.php?action=upsert_attendance', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(record),
@@ -59,7 +59,7 @@ export async function syncAttendanceToMySQL(record: AttendanceRecord): Promise<v
 
 export async function syncCashToMySQL(tx: CashTransaction): Promise<void> {
   try {
-    await fetch('/api.php?action=upsert_cash', {
+    await fetch('./api.php?action=upsert_cash', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(tx),
@@ -73,7 +73,7 @@ export async function fetchFromMySQL(): Promise<{
   cash?: CashTransaction[];
 } | null> {
   try {
-    const res = await fetch('/api.php?action=fetch_all');
+    const res = await fetch('./api.php?action=fetch_all');
     if (res.ok) {
       const data = await res.json();
       if (data && data.success && data.data) {

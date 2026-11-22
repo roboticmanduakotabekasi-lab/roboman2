@@ -179,6 +179,24 @@ try {
             ]);
             break;
 
+        case 'admin-status':
+        case 'auth/admin-status':
+            echo json_encode([
+                'status' => 'ok',
+                'adminConfigured' => true,
+                'firstRunSetupRequired' => false,
+                'adminEmail' => 'roboticman2kotabekasi@gmail.com'
+            ]);
+            break;
+
+        case 'env-config':
+            echo json_encode([
+                'adminEmail' => 'roboticman2kotabekasi@gmail.com',
+                'supabaseUrl' => 'https://qtcwybixtafxuqqcsfcm.supabase.co',
+                'supabaseAnonKey' => 'sb_publishable_7iBBXgluRLWJ0EKix2hdiQ_3UIx8Qhx',
+            ]);
+            break;
+
         case 'sync_all':
             // Batch push from React App to MySQL
             $members = $input['members'] ?? [];

@@ -2,18 +2,18 @@
   "name": "roboman2 - Robotics Club Management System",
   "short_name": "roboman2",
   "description": "Robotics Club Management & Workshop System",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#071120",
   "theme_color": "#0284c7",
   "icons": [
     {
-      "src": "/assets/aistudio/Gemini_Generated_Image_aay230aay230aay2_dccf3432.jpg",
+      "src": "assets/aistudio/Gemini_Generated_Image_aay230aay230aay2_dccf3432.jpg",
       "sizes": "192x192",
       "type": "image/jpeg"
     },
     {
-      "src": "/assets/aistudio/Gemini_Generated_Image_aay230aay230aay2_dccf3432.jpg",
+      "src": "assets/aistudio/Gemini_Generated_Image_aay230aay230aay2_dccf3432.jpg",
       "sizes": "512x512",
       "type": "image/jpeg"
     }

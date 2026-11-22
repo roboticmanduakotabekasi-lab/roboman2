@@ -432,9 +432,9 @@ export async function registerNewAccount(params: RegisterAccountParams): Promise
     };
   }
 
-  // 4. Attempt Registration via Server Backend (/api/auth/register-member)
+  // 4. Attempt Registration via Server Backend (api/auth/register-member)
   try {
-    const res = await fetch('/api/auth/register-member', {
+    const res = await fetch('api/auth/register-member', {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -598,9 +598,9 @@ export async function verifyAccountCredentials(
     return DEMO_ACCOUNTS_MAP[normId];
   }
 
-  // 1. Verify Admin Credentials via Backend Server API (/api/auth/login)
+  // 1. Verify Admin Credentials via Backend Server API (api/auth/login)
   try {
-    const res = await fetch('/api/auth/login', {
+    const res = await fetch('api/auth/login', {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -1040,7 +1040,7 @@ export async function verifySessionWithServer(token?: string | null): Promise<bo
       headers['Authorization'] = `Bearer ${activeToken}`;
     }
 
-    const res = await fetch('/api/auth/verify-session', {
+    const res = await fetch('api/auth/verify-session', {
       method: 'POST',
       credentials: 'include',
       headers,
@@ -1062,7 +1062,7 @@ export async function verifySessionWithServer(token?: string | null): Promise<bo
 export async function logoutFromServer(): Promise<void> {
   clearMemoryAuthToken();
   try {
-    await fetch('/api/auth/logout', {
+    await fetch('api/auth/logout', {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -1114,7 +1114,7 @@ export async function verifyStudentRecoveryPin(
 
   // 1. Panggil backend server endpoint (/api/auth/verify-pin)
   try {
-    const res = await fetch('/api/auth/verify-pin', {
+    const res = await fetch('api/auth/verify-pin', {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -1176,7 +1176,7 @@ export async function updateAccountPasswordByNisn(nisn: string, newPlainPassword
   // 1. Panggil backend server endpoint (/api/auth/recover-with-pin)
   if (recoveryPin) {
     try {
-      const res = await fetch('/api/auth/recover-with-pin', {
+      const res = await fetch('api/auth/recover-with-pin', {
         method: 'POST',
         credentials: 'include',
         headers: {

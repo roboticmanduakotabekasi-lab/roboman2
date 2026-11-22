@@ -252,7 +252,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onBackToDa
 
   useEffect(() => {
     let mounted = true;
-    fetch('/api/auth/admin-status', { credentials: 'include' })
+    fetch('api/auth/admin-status', { credentials: 'include' })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (mounted && data && data.firstRunSetupRequired) {
@@ -462,7 +462,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onBackToDa
 
     setIsLoading(true);
     try {
-      const res = await fetch('/api/auth/setup-admin', {
+      const res = await fetch('api/auth/setup-admin', {
         method: 'POST',
         credentials: 'include',
         headers: {
