@@ -118,7 +118,7 @@ The application enforces a formal role hierarchy mapped to standard operating pr
 To safeguard student privacy and prevent unauthorized account takeovers, the platform implements a zero-trust verification gate:
 
 ```
-[Student Signs Up / Logs In via Google or Email]
+[Student Signs Up / Logs In via NISN & Password or Google OAuth]
                        │
                        ▼
          [Check Membership Status]
@@ -149,11 +149,12 @@ To safeguard student privacy and prevent unauthorized account takeovers, the pla
                    3. Unlock access to Student Member Portal
 ```
 
-### Verification Security Rules
+### Verification & Account Recovery Security Rules
 - **10-Digit NISN Validation**: Validates that the entered identifier consists of exactly 10 numeric digits according to the Indonesian Ministry of Education standard.
 - **Dual-Factor Cross Check**: Even if a student's NISN is known to peers, the date of birth prevents fraudulent identity takeover.
 - **One-Account Claim Rule**: Each NISN can only be tied to a single verified user session.
-- **Admin Emergency Override**: System administrators can manually verify students or correct date-of-birth records via the *Member Directory* detail modal.
+- **Self-Service 4-Digit Recovery PIN**: Students configure a personal 4-digit PIN upon initial account activation. If password is forgotten, students recover and reset credentials independently using NISN + PIN without requiring external email/SMTP servers.
+- **Admin Emergency Override**: System administrators can manually verify students, correct date-of-birth records, or reset student passwords via the *Member Directory* detail modal if both password and PIN are lost.
 - **Demo Sandbox Mode**: Sandbox demo accounts allow instant testing without locking out reviewers, maintaining isolated local mock storage (`robotics_demo_sandbox_*`).
 
 ---
@@ -513,8 +514,9 @@ Full column specifications, formatting rules, and validation guides are document
 - **Export Capabilities**: Export filtered rosters to formatted PDF tables or spreadsheet files.
 
 ### 2. Daily Attendance Engine
+- **Smart Attendance Window**: Configurable session time windows (e.g. Wednesday 16:00–19:00 WIB) with real-time countdown timer and automated lock upon conclusion.
 - **Relational Integrity**: Attendance records are bound to student NISN keys with cascade integrity.
-- **Quick Actions**: One-click *Mark All Present*, rapid status filtering, and custom notes for excused/sick absences.
+- **Quick Actions**: One-click *Mark All Present*, rapid status filtering, custom notes for excused/sick absences, and schedule bypass toggles for emergency sessions.
 - **Auditing & History**: Complete attendance logs with timestamps and operator signatures.
 
 ### 3. Treasury & Cash Ledger
