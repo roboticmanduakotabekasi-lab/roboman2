@@ -6,7 +6,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.1-38B2AC.svg?logo=tailwind-css&logoColor=white)](#)
 [![Supabase](https://img.shields.io/badge/Supabase-Database_%26_Auth-3ECF8E.svg?logo=supabase&logoColor=white)](#)
 [![Privacy Compliance](https://img.shields.io/badge/Data_Privacy-PDP_UU_27%2F2022-success.svg)](#-data-security-privacy--pdp-compliance)
-[![Organization](https://img.shields.io/badge/Organization-MAN_2_Kota_Bekasi-emerald.svg)](#-credits--development-team)
+[![Organization](https://img.shields.io/badge/Organization-Robotic_MAN_2_Kota_Bekasi-emerald.svg)](#-credits--development-team)
 
 An enterprise-grade, responsive, and secure club management platform designed specifically for the **Robotics Extracurricular Club at MAN 2 Kota Bekasi** (**roboman2**). The platform unifies student member rosters, laboratory session attendance tracking, treasury cash dues accounting, challenge submissions & grading, academic workshop schedules, and official announcement broadcasts.
 
