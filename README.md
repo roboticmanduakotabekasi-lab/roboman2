@@ -203,9 +203,9 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 # ==============================================================================
 DB_HOST=localhost
 DB_PORT=3306
-DB_NAME=mankota1_robotik
-DB_USER=mankota1_robotik
-DB_PASSWORD=3Bh4-IR$4eh%aHyW
+DB_NAME=your_database_name
+DB_USER=your_database_user
+DB_PASSWORD=your_database_password
 ```
 
 ### Server vs. Client Variable Propagation
@@ -215,13 +215,13 @@ DB_PASSWORD=3Bh4-IR$4eh%aHyW
 | `NODE_ENV` | Backend (`server.ts`) | `development` | Set to `production` when serving compiled `dist/` bundle |
 | `PORT` / `HOST` | Backend (`server.ts`) | `3000` / `0.0.0.0` | HTTP bind host & port |
 | `ADMIN_EMAIL` | Backend (`api/_auth.ts`) & Frontend | `roboticman2kotabekasi@gmail.com` | Master administrative login email |
-| `ADMIN_PASSWORD` | Backend & Client Storage | `admin123` | Master password (multi-format encrypted) |
+| `ADMIN_PASSWORD` | Backend & Client Storage | *Configured on setup* | Master password (multi-format encrypted) |
 | `SESSION_SECRET` | Backend (`api/_auth.ts`) | *Random per process if unset* | Persistent secret for HMAC-SHA256 `HttpOnly` cookie verification |
 | `VITE_SUPABASE_URL` | Frontend (`supabase.ts`) | *Empty* | Supabase cloud endpoint URL |
 | `VITE_SUPABASE_ANON_KEY` | Frontend (`supabase.ts`) | *Empty* | Supabase anonymous API key for queries and auth |
 | `DB_HOST` / `DB_PORT` | Backend (`api.php`) | `localhost` / `3306` | MySQL host & port on cPanel hosting |
-| `DB_NAME` / `DB_USER` | Backend (`api.php`) | `mankota1_robotik` | MySQL database name & user credentials |
-| `DB_PASSWORD` | Backend (`api.php`) | `3Bh4-IR$4eh%aHyW` | MySQL database access password |
+| `DB_NAME` / `DB_USER` | Backend (`api.php`) | `your_database_name` | MySQL database name & user credentials |
+| `DB_PASSWORD` | Backend (`api.php`) | `your_database_password` | MySQL database access password |
 
 > ⚠️ **Important Security Note**: On cPanel / Apache shared hosting, **never upload `.env` to `public_html/` or `/app/`**. All production secrets and endpoints are bundled securely inside `dist/assets/` and `api.php`. Uploading `.env` to a public web folder can expose database credentials to external downloads.
 
@@ -491,9 +491,9 @@ Deploy `roboman2` on standard cPanel shared hosting (e.g., Domainesia, Niagahost
      - `manifest.json` & `robots.txt`
 3. **Administrator Credentials & Access**:
    - **Login URL**: `https://robotik.man2kotabekasi.sch.id/app/`
-   - **Username**: `admin` or `roboticman2kotabekasi@gmail.com`
-   - **Default Password**: `admin123`
-   - **Password Security**: Multi-format verification supporting Salted SHA-256 (`3bb62e9d75c65289a724a94ec88ff9a0d1ff647652c00300d1c6dd1466bf15c0`), standard MySQL `SHA2('admin123', 256)` (`240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9`), and MD5.
+   - **Username**: `admin` or configured administrator email
+   - **Password**: Configured in server environment variables or initial setup.
+   - **Password Security**: Multi-format verification supporting PBKDF2, Salted SHA-256, standard MySQL `SHA2()`, and MD5.
 4. **Automated Dual-Sync & Offline Failover**:
    - `api.php` automatically links frontend transactions to MySQL `localhost`.
    - If cloud connectivity is offline, the frontend seamlessly fails over to load and persist records directly via MySQL Domainesia.
