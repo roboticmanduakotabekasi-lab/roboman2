@@ -30,6 +30,7 @@ export default defineConfig(({ mode }) => {
   ).replace(/^["']|["']$/g, '').trim();
 
   return {
+    base: './',
     define: {
       'process.env.ADMIN_EMAIL': JSON.stringify(adminEmail),
       'process.env.VITE_ADMIN_EMAIL': JSON.stringify(adminEmail),
