@@ -541,7 +541,7 @@ Developed for the **2026 Term** of **Robotic MAN 2 Kota Bekasi**:
 
 * **Public Relations 1 (2026)**: Inashaura Azkazola Ridalistiyanti
 * **Public Relations 2 (2026)**: Daeniesh Raeisya Achmad
-* **Supervising Mentors & Advisors**: Pembina & Tim Pelatih Robotik MAN 2 Kota Bekasi
+* **Supervising Mentors & Advisors**: Abdul Khoir, S.Kom.
 * **Organization**: Robotic Club MAN 2 Kota Bekasi, West Java, Indonesia
 
 ---
