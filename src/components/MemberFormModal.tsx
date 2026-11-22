@@ -374,8 +374,8 @@ export const MemberFormModal: React.FC<MemberFormModalProps> = ({
               </div>
             </div>
 
-            {/* Row 4: Phone & Email */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Row 4: Phone Numbers (Student WhatsApp & Parent) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
                   <Phone className="w-3.5 h-3.5 text-slate-400" />
@@ -404,21 +404,6 @@ export const MemberFormModal: React.FC<MemberFormModalProps> = ({
                   value={formData.parentPhone}
                   onChange={(e) => setFormData({ ...formData, parentPhone: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-600 transition"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                  <Mail className="w-3.5 h-3.5 text-slate-400" />
-                  <span>{isEn ? 'Student Email Address' : 'Alamat Email Siswa'}</span>
-                </label>
-                <input
-                  id="formEmail"
-                  type="email"
-                  placeholder="student@gmail.com"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-600 transition"
                 />
               </div>
             </div>

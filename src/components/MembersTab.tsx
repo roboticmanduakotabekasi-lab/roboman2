@@ -1937,8 +1937,8 @@ export const MembersTab: React.FC<MembersTabProps> = ({
                               >
                                 {member.fullName}
                               </button>
-                              <div className="text-[11px] text-slate-400 font-normal mt-0.5 truncate">
-                                {member.email || `${member.fullName.toLowerCase().replace(/\s+/g, '.')}@man2.sch.id`}
+                              <div className="text-[11px] text-slate-400 font-mono mt-0.5 truncate">
+                                NISN: {member.nisn || '-'}
                               </div>
                             </div>
                           </div>

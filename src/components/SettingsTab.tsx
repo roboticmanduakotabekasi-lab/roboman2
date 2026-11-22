@@ -239,9 +239,9 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       return;
     }
 
-    // 3. Validasi Email jika diisi
-    const cleanEmail = email.trim().toLowerCase();
-    if (cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    // 3. Validasi Email (HANYA untuk Administrator)
+    const cleanEmail = isSuperAdmin ? email.trim().toLowerCase() : (session.email || '');
+    if (isSuperAdmin && cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
       const msg = isEn ? 'Invalid email address format.' : 'Format alamat email tidak valid.';
       setErrorMsg(msg);
       playWarningBuzzer();
@@ -515,21 +515,45 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               </div>
             </div>
 
-            {/* Email & Peran */}
+            {/* Email & Peran (Email hanya untuk Administrator) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                  <Mail className="w-3.5 h-3.5 text-slate-400" />
-                  <span>{isEn ? 'Email Address' : 'Alamat Email'}</span>
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="nama@sekolah.sch.id"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition"
-                />
-              </div>
+              {isSuperAdmin ? (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-slate-400" />
+                    <span>{isEn ? 'Admin Email Address' : 'Alamat Email Admin'}</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="admin@organization.com"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition"
+                  />
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    {isEn ? 'Official administrator email' : 'Alamat email resmi administrator'}
+                  </span>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <KeyRound className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>{isEn ? 'Authentication Method' : 'Metode Autentikasi'}</span>
+                    </span>
+                    <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      PIN Aktif
+                    </span>
+                  </label>
+                  <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 flex items-center justify-between">
+                    <span className="font-mono text-slate-700 font-semibold">NISN + 4-Digit Recovery PIN</span>
+                    <span className="text-[10px] text-slate-400">{isEn ? 'No Email' : 'Tanpa Email'}</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    {isEn ? 'Account recovery uses personal NISN and 4-digit PIN.' : 'Pemulihan akun menggunakan NISN dan PIN 4-digit pribadi.'}
+                  </span>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">

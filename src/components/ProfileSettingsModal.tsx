@@ -174,15 +174,17 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
       return;
     }
 
-    // 3. Aturan Email Wajib
+    // 3. Aturan Email: HANYA wajib untuk Administrator
     const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail) {
-      setErrorMsg(language === 'id' ? 'Alamat email wajib diisi untuk pemulihan akun dan notifikasi.' : 'Email address is required for account notifications and password reset.');
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
-      setErrorMsg('Invalid email address format.');
-      return;
+    if (isAdmin) {
+      if (!cleanEmail) {
+        setErrorMsg(language === 'id' ? 'Alamat email wajib diisi untuk administrator.' : 'Email address is required for administrator.');
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+        setErrorMsg('Invalid email address format.');
+        return;
+      }
     }
 
     // 4. Aturan Keunikan Username jika diubah
@@ -623,33 +625,56 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
                 </div>
               </div>
 
-              {/* Email & Role Display */}
+              {/* Email & Role Display (Email only shown & required for Administrator) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
-                    <span className="flex items-center gap-1.5">
-                      <Mail className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{language === 'id' ? 'Alamat Email' : 'Email Address'}</span>
-                      <span className="text-rose-500">*</span>
+                {isAdmin ? (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Mail className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{language === 'id' ? 'Alamat Email Admin' : 'Admin Email Address'}</span>
+                        <span className="text-rose-500">*</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-normal">
+                        {language === 'id' ? 'Wajib' : 'Required'}
+                      </span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="admin@organization.com"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-[#4338CA] focus:ring-1 focus:ring-[#4338CA] transition"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-1 block">
+                      {language === 'id'
+                        ? 'Email resmi administrator sistem'
+                        : 'Official system administrator email'}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-normal">
-                      {language === 'id' ? 'Wajib' : 'Required'}
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <KeyRound className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>{language === 'id' ? 'Metode Autentikasi' : 'Authentication Method'}</span>
+                      </span>
+                      <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                        PIN Aktif
+                      </span>
+                    </label>
+                    <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 flex items-center justify-between">
+                      <span className="font-mono text-slate-700 font-semibold">NISN + 4-Digit Recovery PIN</span>
+                      <span className="text-[10px] text-slate-400">Tanpa Email</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 mt-1 block">
+                      {language === 'id'
+                        ? 'Akun siswa & pengurus menggunakan NISN & PIN 4-digit pribadi untuk pemulihan akun.'
+                        : 'Student & board accounts use NISN & personal 4-digit PIN for account recovery.'}
                     </span>
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="nama@organization.com"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-[#4338CA] focus:ring-1 focus:ring-[#4338CA] transition"
-                  />
-                  <span className="text-[10px] text-slate-400 mt-1 block">
-                    {language === 'id'
-                      ? 'Wajib untuk verifikasi identitas lupa sandi & notifikasi klub'
-                      : 'Required for password recovery verification & official notifications'}
-                  </span>
-                </div>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
