@@ -1,0 +1,23 @@
+# ==============================================================================
+# DOCKER COMPOSE - ROBOMAN2 SELF-HOSTING
+# ==============================================================================
+services:
+  roboman2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: roboman2_app
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    env_file:
+      - .env
+    volumes:
+      # Persistent storage for self-hosted user accounts and local database
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

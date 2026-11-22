@@ -1,0 +1,4 @@
+# roboman2 - Robotics Club Management System
+User-agent: *
+Disallow: /api/
+Allow: /
