@@ -20,6 +20,14 @@ import {
 } from '../data/initialData';
 import { AccountConfig, getCustomAccounts, saveCustomAccounts, DEFAULT_ACCOUNTS } from '../utils/authConfig';
 import { validateAttendanceSubmission } from '../utils/attendanceWindow';
+import {
+  syncMemberToMySQL,
+  deleteMemberFromMySQL,
+  syncAttendanceToMySQL,
+  syncCashToMySQL,
+  syncAllToMySQL,
+  fetchFromMySQL,
+} from './mysqlSyncService';
 
 export const SQL_INIT_SCRIPT = `-- ==============================================================================
 -- SISTEM MANAJEMEN EKSKUL & PRE-REGISTRATION GOOGLE AUTH (SUPABASE SQL)
@@ -1005,6 +1013,9 @@ export async function deleteUserAccountFromDB(username: string): Promise<{ succe
 // ----------------------------------------------------
 export async function upsertMemberToDB(member: Member, originalNisn?: string): Promise<{ success: boolean; error?: string }> {
   try {
+    // Sync to MySQL Domainesia backend in background
+    syncMemberToMySQL(member);
+
     const supa = getSupabase();
     const nisnVal = String(member.nisn || member.id_member || '').trim();
     
@@ -1149,6 +1160,7 @@ export async function upsertMembersBatchToDB(members: Member[]): Promise<{ succe
 
 export async function deleteMemberFromDB(nisn: string, fullName?: string): Promise<{ success: boolean; error?: string }> {
   try {
+    deleteMemberFromMySQL(nisn);
     const supa = getSupabase();
     const cleanNisn = nisn.trim();
 
@@ -1279,6 +1291,7 @@ export async function updateMembersStatusBatchToDB(
 // ----------------------------------------------------
 export async function upsertAttendanceToDB(record: AttendanceRecord): Promise<{ success: boolean; error?: string }> {
   try {
+    syncAttendanceToMySQL(record);
     const supa = getSupabase();
     const recDate = String(record.tanggal || '').slice(0, 10).trim();
     const recNisn = String(record.nisn || record.id_member || '').trim();
@@ -1535,6 +1548,7 @@ export async function deleteAllAttendanceFromDB(
 // ----------------------------------------------------
 export async function upsertCashToDB(transaction: CashTransaction): Promise<{ success: boolean; error?: string }> {
   try {
+    syncCashToMySQL(transaction);
     const supa = getSupabase();
     const id = transaction.id || `cash_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const cleanNisn = (transaction.nisn && transaction.nisn.trim() !== '-' && transaction.nisn.trim() !== '') 
@@ -1815,6 +1829,16 @@ export async function fetchAllSupabaseData(accountUsername?: string) {
         .sort((a, b) => a.fullName.localeCompare(b.fullName));
     }
 
+    // Fallback: If cloud Supabase empty or offline, check if MySQL Domainesia has members
+    if (members.length === 0) {
+      try {
+        const mysqlData = await fetchFromMySQL();
+        if (mysqlData && mysqlData.members && mysqlData.members.length > 0) {
+          members = mysqlData.members;
+        }
+      } catch {}
+    }
+
     // Helper map of members by nisn (id_member)
     const memberMap = new Map<string, Member>();
     members.forEach(m => {
@@ -1976,6 +2000,9 @@ export async function syncAllLocalDataToSupabase(
   error?: string;
 }> {
   try {
+    // Sync all data to Domainesia MySQL database as well
+    syncAllToMySQL(members, attendance, cash);
+
     const supa = getSupabase();
 
     // 1. Members
