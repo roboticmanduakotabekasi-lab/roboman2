@@ -1,4 +1,4 @@
-# Robotic MAN 2 Kota Bekasi Management System (`roboticman2kotabekasi`)
+# roboman2 — Robotic MAN 2 Kota Bekasi Management System
 
 [![Release Year](https://img.shields.io/badge/Release_Year-2026-blue.svg)](#)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6.svg?logo=typescript&logoColor=white)](#)
@@ -8,7 +8,7 @@
 [![Privacy Compliance](https://img.shields.io/badge/Data_Privacy-PDP_UU_27%2F2022-success.svg)](#-data-security-privacy--pdp-compliance)
 [![Organization](https://img.shields.io/badge/Organization-MAN_2_Kota_Bekasi-emerald.svg)](#-credits--development-team)
 
-An enterprise-grade, responsive, and secure club management platform designed specifically for the **Robotics Extracurricular Club at MAN 2 Kota Bekasi** (`roboticman2kotabekasi`). The platform unifies student member rosters, laboratory session attendance tracking, treasury cash dues accounting, challenge submissions & grading, academic workshop schedules, and official announcement broadcasts.
+An enterprise-grade, responsive, and secure club management platform designed specifically for the **Robotics Extracurricular Club at MAN 2 Kota Bekasi** (**roboman2**). The platform unifies student member rosters, laboratory session attendance tracking, treasury cash dues accounting, challenge submissions & grading, academic workshop schedules, and official announcement broadcasts.
 
 ---
 
@@ -30,11 +30,11 @@ An enterprise-grade, responsive, and secure club management platform designed sp
 
 ## 🏛️ Executive Overview & Architecture
 
-`roboticman2kotabekasi` bridges administration, faculty advisors, executive student committees, and enrolled club members into a unified, high-density digital workspace. It combines modern SaaS ergonomics with zero-trust security and full offline resilience.
+**roboman2** bridges administration, faculty advisors, executive student committees, and enrolled club members into a unified, high-density digital workspace. It combines modern SaaS ergonomics with zero-trust security and full offline resilience.
 
 ```
 +-----------------------------------------------------------------------------------+
-|                        roboticman2kotabekasi Unified Portal                       |
+|                              roboman2 Unified Portal                              |
 +-----------------------------------------+-----------------------------------------+
 |        Administrative Workspace         |          Student Member Portal          |
 |  (Admin, Executive Board, Advisors)     |           (Enrolled Students)           |
