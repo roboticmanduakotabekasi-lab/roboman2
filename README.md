@@ -389,14 +389,14 @@ Open [http://localhost:3000](http://localhost:3000) in your web browser.
 
 ## 🌐 Self-Hosting & Production Deployment Guide
 
-Deploy `roboticman2kotabekasi` on your own VPS, dedicated server, home server, or container host under a custom subdomain (e.g., `robotik.man2kotabekasi.sch.id`). `server.ts` serves both the compiled `dist/` frontend and `/api/*` backend in a single Node.js 22+ process.
+Deploy `roboticman2kotabekasi` on your own VPS, dedicated server, home server, or container host under a custom subdomain (e.g., `robotik.your-domain.sch.id`). `server.ts` serves both the compiled `dist/` frontend and `/api/*` backend in a single Node.js 22+ process.
 
 ### Option 1: VPS / Bare-Metal (Node.js 22 + PM2 + Nginx SSL)
 
 #### Step 1: DNS Configuration
 Add an `A` record in your DNS provider:
 - **Type**: `A`
-- **Name / Host**: `robotik` (or full subdomain `robotik.man2kotabekasi.sch.id`)
+- **Name / Host**: `robotik` (or full subdomain `robotik.your-domain.sch.id`)
 - **Target / Value**: `<YOUR_SERVER_PUBLIC_IP>`
 
 #### Step 2: Build the Application on the Server
@@ -418,21 +418,21 @@ pm2 startup
 ```
 
 #### Step 4: Configure Nginx Reverse Proxy with HTTPS
-Create `/etc/nginx/sites-available/robotik.man2kotabekasi.sch.id`:
+Create `/etc/nginx/sites-available/robotik.your-domain.sch.id`:
 
 ```nginx
 server {
     listen 80;
-    server_name robotik.man2kotabekasi.sch.id;
+    server_name robotik.your-domain.sch.id;
     return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name robotik.man2kotabekasi.sch.id;
+    server_name robotik.your-domain.sch.id;
 
-    ssl_certificate /etc/letsencrypt/live/robotik.man2kotabekasi.sch.id/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/robotik.man2kotabekasi.sch.id/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/robotik.your-domain.sch.id/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/robotik.your-domain.sch.id/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
 
     gzip on;
@@ -451,9 +451,9 @@ server {
 
 Enable the site and issue free SSL via Certbot:
 ```bash
-sudo ln -s /etc/nginx/sites-available/robotik.man2kotabekasi.sch.id /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/robotik.your-domain.sch.id /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d robotik.man2kotabekasi.sch.id
+sudo certbot --nginx -d robotik.your-domain.sch.id
 ```
 
 ### Option 2: Docker Self-Hosting (`Dockerfile` included)
@@ -471,13 +471,13 @@ docker run -d \
   roboticman2
 ```
 
-### Option 3: cPanel / Domainesia Shared Hosting (Apache + MySQL via `api.php`)
+### Option 3: cPanel / Shared Hosting (Apache + MySQL via `api.php`)
 
-Deploy `roboman2` on standard cPanel shared hosting (e.g., Domainesia, Niagahoster, Hostinger cPanel) either at root (`public_html/`) or inside a subfolder such as **`/app/`** (`https://robotik.man2kotabekasi.sch.id/app/`):
+Deploy `roboman2` on standard cPanel shared hosting (e.g., Domainesia, Niagahoster, Hostinger cPanel) either at root (`public_html/`) or inside a subfolder such as **`/app/`** (`https://your-domain.sch.id/app/`):
 
 1. **Database Setup**:
    - Open cPanel ➔ **MySQL Databases**.
-   - Create database & user (e.g., `mankota1_robotik` or `robotakman2kotbek`).
+   - Create database & user (e.g., `your_cpanel_database`).
    - Assign user to database with **ALL PRIVILEGES**.
    - Open **phpMyAdmin**, select the database, and click **Import** ➔ choose `database_mysql.sql` (or let `api.php` auto-generate the self-healing schema on first visit).
 2. **Web Bundle Deployment**:
@@ -490,14 +490,14 @@ Deploy `roboman2` on standard cPanel shared hosting (e.g., Domainesia, Niagahost
      - `.htaccess` (SPA URL rewrite and API route mapping)
      - `manifest.json` & `robots.txt`
 3. **Administrator Credentials & Access**:
-   - **Login URL**: `https://robotik.man2kotabekasi.sch.id/app/`
+   - **Login URL**: `https://your-domain.sch.id/app/` (or your chosen deployment URL)
    - **Username**: `admin` or configured administrator email
    - **Password**: Configured in server environment variables or initial setup.
    - **Password Security**: Multi-format verification supporting PBKDF2, Salted SHA-256, standard MySQL `SHA2()`, and MD5.
 4. **Automated Dual-Sync & Offline Failover**:
    - `api.php` automatically links frontend transactions to MySQL `localhost`.
-   - If cloud connectivity is offline, the frontend seamlessly fails over to load and persist records directly via MySQL Domainesia.
-   - Test backend health anytime at `https://robotik.man2kotabekasi.sch.id/app/api.php?action=health`.
+   - If cloud connectivity is offline, the frontend seamlessly fails over to load and persist records directly via the local MySQL database.
+   - Test backend health anytime at `https://your-domain.sch.id/app/api.php?action=health`.
 5. **Alumni & Demisioner Security Lock (RBAC)**:
    - When students graduate or are marked as `Alumni` or `Keluar`, the system automatically revokes Executive Board edit privileges and excludes them from daily attendance rosters, preserving historical attendance and financial ledger records.
 
