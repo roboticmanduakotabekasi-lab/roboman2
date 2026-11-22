@@ -1,17 +1,20 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Read Supabase environment variables from import.meta or process.env (supports both VITE_ and non-VITE aliases)
+// Read Supabase environment variables from import.meta or process.env (supports VITE_, NEXT_PUBLIC_, and bare aliases)
 const rawEnvUrl = (
   (import.meta as any).env?.VITE_SUPABASE_URL ||
+  (import.meta as any).env?.NEXT_PUBLIC_SUPABASE_URL ||
   (import.meta as any).env?.SUPABASE_URL ||
-  (typeof process !== 'undefined' && (process.env?.VITE_SUPABASE_URL || process.env?.SUPABASE_URL)) ||
+  (typeof process !== 'undefined' && (process.env?.VITE_SUPABASE_URL || process.env?.NEXT_PUBLIC_SUPABASE_URL || process.env?.SUPABASE_URL)) ||
   ''
 ).trim().replace(/^["']|["']$/g, '');
 
 const rawEnvKey = (
   (import.meta as any).env?.VITE_SUPABASE_ANON_KEY ||
+  (import.meta as any).env?.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  (import.meta as any).env?.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
   (import.meta as any).env?.SUPABASE_ANON_KEY ||
-  (typeof process !== 'undefined' && (process.env?.VITE_SUPABASE_ANON_KEY || process.env?.SUPABASE_ANON_KEY)) ||
+  (typeof process !== 'undefined' && (process.env?.VITE_SUPABASE_ANON_KEY || process.env?.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env?.SUPABASE_ANON_KEY)) ||
   ''
 ).trim().replace(/^["']|["']$/g, '');
 
