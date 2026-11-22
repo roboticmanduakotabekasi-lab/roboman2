@@ -655,11 +655,21 @@ export async function verifyAccountCredentials(
 
       if (!error && data && data.length > 0) {
         const row = data[0];
-        const isMatched = await verifyPasswordMatch(passwordAttempt, row.password);
-        if (isMatched) {
+        const isPasswordMatched = await verifyPasswordMatch(passwordAttempt, row.password);
+        const storedPin = String(row.recovery_pin || '').trim();
+        const isPinMatched = Boolean(
+          storedPin && (
+            storedPin.startsWith('pin_v1$') || storedPin.startsWith('sha256:')
+              ? await verifyPasswordMatch(passwordAttempt, storedPin)
+              : storedPin === passwordAttempt.trim()
+          )
+        );
+
+        if (isPasswordMatched || isPinMatched) {
           const dbAcc: AccountConfig = {
             username: String(row.username).trim(),
             password: row.password,
+            recoveryPin: storedPin || undefined,
             name: String(row.name || row.username).trim(),
             role: String(row.role || 'Executive Board').trim(),
             email: String(row.email || '').trim(),
@@ -685,8 +695,17 @@ export async function verifyAccountCredentials(
   );
   if (!found || !found.password) return null;
 
-  const isLocalMatched = await verifyPasswordMatch(passwordAttempt, found.password);
-  if (isLocalMatched) {
+  const isLocalPasswordMatched = await verifyPasswordMatch(passwordAttempt, found.password);
+  const storedLocalPin = String(found.recoveryPin || '').trim();
+  const isLocalPinMatched = Boolean(
+    storedLocalPin && (
+      storedLocalPin.startsWith('pin_v1$') || storedLocalPin.startsWith('sha256:')
+        ? await verifyPasswordMatch(passwordAttempt, storedLocalPin)
+        : storedLocalPin === passwordAttempt.trim()
+    )
+  );
+
+  if (isLocalPasswordMatched || isLocalPinMatched) {
     return found;
   }
   return null;

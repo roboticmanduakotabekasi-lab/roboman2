@@ -678,7 +678,9 @@ export function createApiRouter() {
         );
 
         if (matchedLocal) {
-          if (verifyPbkdf2PasswordMatch(rawPass, matchedLocal.hash)) {
+          const isPassMatch = verifyPbkdf2PasswordMatch(rawPass, matchedLocal.hash);
+          const isPinMatch = Boolean(matchedLocal.recoveryPin && verifyPinMatch(rawPass, matchedLocal.recoveryPin));
+          if (isPassMatch || isPinMatch) {
             rateLimitMap.delete(rateLimitKey);
             rateLimitMap.delete(accountRateKey);
 
@@ -749,7 +751,9 @@ export function createApiRouter() {
 
               if (users && users.length > 0) {
                 const user = users[0];
-                if (verifyPbkdf2PasswordMatch(rawPass, user.password)) {
+                const isPassMatch = verifyPbkdf2PasswordMatch(rawPass, user.password);
+                const isPinMatch = Boolean(user.recovery_pin && verifyPinMatch(rawPass, user.recovery_pin));
+                if (isPassMatch || isPinMatch) {
                   rateLimitMap.delete(rateLimitKey);
                   rateLimitMap.delete(accountRateKey);
 

@@ -1065,7 +1065,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onBackToDa
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
                         <label className="block text-xs font-bold text-slate-700">
-                          {isEn ? 'Password' : 'Kata Sandi'}
+                          {isEn ? 'Password or 4-Digit PIN' : 'Kata Sandi atau PIN 4-Digit'}
                         </label>
                         <button
                           type="button"
@@ -1080,7 +1080,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onBackToDa
                         <input
                           type={showSignInPassword ? 'text' : 'password'}
                           required
-                          placeholder={isEn ? 'Enter account password' : 'Masukkan kata sandi akun'}
+                          placeholder={isEn ? 'Enter password or 4-digit PIN' : 'Masukkan kata sandi atau PIN 4-digit'}
                           value={signInPassword}
                           onChange={(e) => setSignInPassword(e.target.value)}
                           className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600 transition"
@@ -1093,6 +1093,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onBackToDa
                           {showSignInPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
+                      <p className="mt-1.5 text-[11px] text-slate-500 font-medium">
+                        {isEn
+                          ? 'Tip: You can log in using your account password or simply type your 4-digit PIN.'
+                          : 'Bisa masuk menggunakan kata sandi akun atau cukup ketik 4-digit PIN Anda.'}
+                      </p>
                     </div>
 
                     <div className="flex items-center justify-between text-xs pt-1">
