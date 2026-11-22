@@ -22,22 +22,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // 1. Konfigurasi Database MySQL Domainesia
 $db_host = getenv('DB_HOST') ?: 'localhost';
-$db_name = getenv('DB_NAME') ?: 'mankota1_robotik';
-$db_user = getenv('DB_USER') ?: 'mankota1_robotik';
-$db_pass = getenv('DB_PASSWORD') ?: '3Bh4-IR$4eh%aHyW';
+$db_name = getenv('DB_NAME') ?: 'robotakman2kotbek';
+$db_user = getenv('DB_USER') ?: 'robotakman2kotbek';
+$db_pass = getenv('DB_PASSWORD') ?: 'robodih';
 
-try {
-    $pdo = new PDO("mysql:host=$db_host;dbname=$db_name;charset=utf8mb4", $db_user, $db_pass, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES => false,
-    ]);
-} catch (PDOException $e) {
+// Kandidat koneksi (prioritas: robotakman2kotbek, prefix cPanel mankota1_, atau mankota1_robotik)
+$candidates = [
+    ['name' => $db_name, 'user' => $db_user, 'pass' => $db_pass],
+    ['name' => 'mankota1_' . $db_name, 'user' => 'mankota1_' . $db_user, 'pass' => $db_pass],
+    ['name' => 'mankota1_robotik', 'user' => 'mankota1_robotik', 'pass' => '3Bh4-IR$4eh%aHyW'],
+];
+
+$pdo = null;
+$lastError = '';
+
+foreach ($candidates as $c) {
+    try {
+        $pdo = new PDO("mysql:host=$db_host;dbname={$c['name']};charset=utf8mb4", $c['user'], $c['pass'], [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+        ]);
+        $db_name = $c['name'];
+        $db_user = $c['user'];
+        break;
+    } catch (PDOException $e) {
+        $lastError = $e->getMessage();
+    }
+}
+
+if (!$pdo) {
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'error' => 'Koneksi MySQL Gagal: ' . $e->getMessage(),
-        'tip' => 'Pastikan database mankota1_robotik sudah dibuat di cPanel dan user mankota1_robotik memiliki izin ALL PRIVILEGES.'
+        'error' => 'Koneksi MySQL Gagal: ' . $lastError,
+        'tip' => 'Pastikan user ' . $db_user . ' dan database ' . $db_name . ' sudah dibuat di cPanel MySQL Databases dan diberi ALL PRIVILEGES.'
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     exit;
 }
