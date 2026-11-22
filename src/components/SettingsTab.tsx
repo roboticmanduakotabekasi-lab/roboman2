@@ -51,7 +51,8 @@ import { ThemeColor, THEMES } from '../utils/theme';
 import { 
   getRoleMetadata, 
   getRoleAuthoritiesSummary, 
-  isHeadAdmin 
+  isHeadAdmin,
+  getCanonicalRole
 } from '../utils/rbac';
 
 interface SettingsTabProps {
@@ -96,6 +97,12 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   const roleAuthorities = useMemo(() => {
     return getRoleAuthoritiesSummary(session, language);
   }, [session, language]);
+
+  const isSuperAdmin = useMemo(() => {
+    return Boolean(
+      session && (isHeadAdmin(session) || getCanonicalRole(session) === 'admin' || session.role?.toLowerCase() === 'admin' || session.username === 'admin')
+    );
+  }, [session]);
 
   // Preferensi Display & Audio
   const [isCompact, setIsCompact] = useState(compactSpacing);
