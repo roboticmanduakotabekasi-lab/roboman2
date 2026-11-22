@@ -162,21 +162,31 @@ export function generateRolloverPreview(members: Member[]): RolloverPreviewSumma
   };
 }
 
-export function applyBatchRollover(members: Member[]): Member[] {
+export function applyBatchRollover(
+  members: Member[],
+  customClassRoomOverrides?: Record<string, string>
+): Member[] {
   const preview = generateRolloverPreview(members);
-  const detailMap = new Map(preview.details.map((d) => [d.member.nisn || String(d.member.id_member), d]));
+  const detailMap = new Map(
+    preview.details.map((d) => [d.member.nisn || String(d.member.id_member || d.member.fullName), d])
+  );
 
   return members.map((m) => {
-    const key = m.nisn || String(m.id_member);
+    const key = m.nisn || String(m.id_member || m.fullName);
     const plan = detailMap.get(key);
     if (!plan || plan.actionType === 'unchanged') {
       return m;
     }
 
+    const overriddenRoom =
+      customClassRoomOverrides && customClassRoomOverrides[key] !== undefined
+        ? customClassRoomOverrides[key].trim().toUpperCase()
+        : plan.newClassRoom;
+
     return {
       ...m,
       grade: plan.newGrade,
-      classRoom: plan.newClassRoom,
+      classRoom: overriddenRoom,
       status: plan.newStatus as any,
     };
   });

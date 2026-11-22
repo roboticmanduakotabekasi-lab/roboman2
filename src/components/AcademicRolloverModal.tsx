@@ -22,6 +22,10 @@ export const AcademicRolloverModal: React.FC<Props> = ({
   const isEn = language === 'en';
   const [isProcessing, setIsProcessing] = useState(false);
   const [filterAction, setFilterAction] = useState<string>('ALL');
+  const [classRoomOverrides, setClassRoomOverrides] = useState<Record<string, string>>({});
+  const [batchGrade11Room, setBatchGrade11Room] = useState<string>('');
+
+  const getMemberKey = (member: Member) => member.nisn || String(member.id_member || member.fullName);
 
   const preview = useMemo(() => generateRolloverPreview(members), [members]);
 
@@ -40,7 +44,7 @@ export const AcademicRolloverModal: React.FC<Props> = ({
 
     setIsProcessing(true);
     try {
-      const updated = applyBatchRollover(members);
+      const updated = applyBatchRollover(members, classRoomOverrides);
       await onConfirmRollover(updated);
       onClose();
     } finally {
@@ -126,6 +130,46 @@ export const AcademicRolloverModal: React.FC<Props> = ({
 
           {/* Table Preview */}
           <div className="p-6">
+            {/* Grade 10 to 11 Classroom Batch Setter */}
+            {preview.promotedTo11Count > 0 && (
+              <div className="mb-4 p-3 bg-indigo-50/70 border border-indigo-200/80 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2 text-xs text-indigo-950 font-semibold">
+                  <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
+                  <span>
+                    {isEn
+                      ? 'Grade 10 ➔ 11 Classroom: Room/section can be edited per student below, or batch applied:'
+                      : 'Siswa Kelas X ➔ XI: Rombel/jurusan baru dapat diedit per siswa di tabel, atau samakan semua:'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                  <input
+                    type="text"
+                    placeholder={isEn ? "e.g. 1 / MIPA 1" : "Contoh: 1 / MIPA 1"}
+                    value={batchGrade11Room}
+                    onChange={(e) => setBatchGrade11Room(e.target.value)}
+                    className="px-2.5 py-1 text-xs uppercase font-bold border border-indigo-200 rounded-lg bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full sm:w-32"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!batchGrade11Room.trim()) return;
+                      const val = batchGrade11Room.trim().toUpperCase();
+                      const newOverrides: Record<string, string> = { ...classRoomOverrides };
+                      preview.details.forEach((d) => {
+                        if (d.actionType === 'promote_11') {
+                          newOverrides[getMemberKey(d.member)] = val;
+                        }
+                      });
+                      setClassRoomOverrides(newOverrides);
+                    }}
+                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shrink-0 transition cursor-pointer"
+                  >
+                    {isEn ? 'Set for All' : 'Terapkan ke Semua'}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-bold text-slate-700">
                 {isEn ? 'Roster Impact Preview' : 'Pratinjau Perubahan Anggota'} ({filteredDetails.length})
@@ -157,44 +201,73 @@ export const AcademicRolloverModal: React.FC<Props> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredDetails.map((d, i) => (
-                    <tr key={i} className="hover:bg-slate-50/70 transition">
-                      <td className="px-4 py-2.5 font-bold text-slate-800">
-                        {d.member.fullName || d.member.full_name}
-                        <span className="block text-[10px] font-normal text-slate-400 font-mono">
-                          {d.member.nisn || '-'}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2.5 text-slate-600 font-medium">
-                        {d.oldGrade} {d.oldClassRoom}
-                      </td>
-                      <td className="px-2 py-2.5 text-center text-slate-400">
-                        <ArrowRight className="w-3.5 h-3.5 mx-auto" />
-                      </td>
-                      <td className="px-3 py-2.5 font-bold text-indigo-600">
-                        {d.actionType === 'graduate_alumni' ? (
-                          <span className="text-purple-600 font-bold">Alumni</span>
-                        ) : (
-                          `${d.newGrade} ${d.newClassRoom}`
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5 text-right">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            d.actionType === 'promote_11'
-                              ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                              : d.actionType === 'promote_12'
-                              ? 'bg-sky-50 text-sky-700 border border-sky-200'
-                              : d.actionType === 'graduate_alumni'
-                              ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                              : 'bg-slate-100 text-slate-600'
-                          }`}
-                        >
-                          {isEn ? d.actionLabelEn : d.actionLabelId}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {filteredDetails.map((d, i) => {
+                    const memberKey = getMemberKey(d.member);
+                    const effectiveRoom =
+                      classRoomOverrides[memberKey] !== undefined
+                        ? classRoomOverrides[memberKey]
+                        : d.newClassRoom;
+
+                    return (
+                      <tr key={i} className="hover:bg-slate-50/70 transition">
+                        <td className="px-4 py-2.5 font-bold text-slate-800">
+                          {d.member.fullName || d.member.full_name}
+                          <span className="block text-[10px] font-normal text-slate-400 font-mono">
+                            {d.member.nisn || '-'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5 text-slate-600 font-medium">
+                          {d.oldGrade} {d.oldClassRoom}
+                        </td>
+                        <td className="px-2 py-2.5 text-center text-slate-400">
+                          <ArrowRight className="w-3.5 h-3.5 mx-auto" />
+                        </td>
+                        <td className="px-3 py-2.5 font-bold text-indigo-600">
+                          {d.actionType === 'graduate_alumni' ? (
+                            <span className="text-purple-600 font-bold">Alumni</span>
+                          ) : d.actionType === 'promote_11' ? (
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-indigo-700 font-mono">{d.newGrade}</span>
+                              <input
+                                type="text"
+                                value={effectiveRoom}
+                                onChange={(e) => {
+                                  const val = e.target.value.toUpperCase();
+                                  setClassRoomOverrides((prev) => ({ ...prev, [memberKey]: val }));
+                                }}
+                                placeholder="Rombel"
+                                title={isEn ? 'Section for Grade 11 (editable)' : 'Rombel Kelas 11 (dapat diubah)'}
+                                className="w-24 px-2 py-0.5 text-xs font-bold text-indigo-950 uppercase border border-indigo-300 rounded-lg bg-indigo-50/60 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 transition"
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-sky-700 font-mono">{d.newGrade}</span>
+                              <span className="font-bold text-slate-700">{d.oldClassRoom || '-'}</span>
+                              <span className="text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
+                                {isEn ? 'Preserved' : 'Tetap'}
+                              </span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              d.actionType === 'promote_11'
+                                ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                                : d.actionType === 'promote_12'
+                                ? 'bg-sky-50 text-sky-700 border border-sky-200'
+                                : d.actionType === 'graduate_alumni'
+                                ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                : 'bg-slate-100 text-slate-600'
+                            }`}
+                          >
+                            {isEn ? d.actionLabelEn : d.actionLabelId}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {filteredDetails.length === 0 && (
                     <tr>
                       <td colSpan={5} className="p-6 text-center text-slate-400">
