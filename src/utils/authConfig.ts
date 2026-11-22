@@ -162,7 +162,7 @@ export async function verifyPasswordMatch(attempt: string, storedHash: string): 
 export const DEFAULT_ACCOUNTS: AccountConfig[] = [
   {
     username: 'roboticman2kotabekasi',
-    password: '',
+    password: 'bc170b965ad30c470e0120d29f710671b4c1afe062a2ee95c6a93c8a8b108a6e',
     name: 'Admin Robotic MAN 2 Kota Bekasi',
     role: 'admin',
     email: ENV_ADMIN_EMAIL,
@@ -171,7 +171,7 @@ export const DEFAULT_ACCOUNTS: AccountConfig[] = [
   },
   {
     username: 'admin',
-    password: '',
+    password: 'bc170b965ad30c470e0120d29f710671b4c1afe062a2ee95c6a93c8a8b108a6e',
     name: 'Admin Robotic MAN 2 Kota Bekasi',
     role: 'admin',
     email: ENV_ADMIN_EMAIL,
@@ -180,7 +180,7 @@ export const DEFAULT_ACCOUNTS: AccountConfig[] = [
   },
   {
     username: 'pembina',
-    password: '',
+    password: 'bc170b965ad30c470e0120d29f710671b4c1afe062a2ee95c6a93c8a8b108a6e',
     name: 'Abdul Khoir, S.Kom. (Faculty Advisor)',
     role: 'admin',
     email: ENV_ADMIN_EMAIL,
