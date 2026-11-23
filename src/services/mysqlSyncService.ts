@@ -76,6 +76,16 @@ export async function deleteAttendanceFromMySQL(id: string, tanggal?: string, id
   } catch {}
 }
 
+export async function deleteMultipleAttendanceFromMySQL(ids: string[]): Promise<void> {
+  try {
+    await fetch('./api.php?action=delete_attendance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
+  } catch {}
+}
+
 export async function syncCashToMySQL(tx: CashTransaction): Promise<void> {
   try {
     await fetch('./api.php?action=upsert_cash', {
@@ -92,6 +102,16 @@ export async function deleteCashFromMySQL(id: string): Promise<void> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id }),
+    });
+  } catch {}
+}
+
+export async function deleteMultipleCashFromMySQL(ids: string[]): Promise<void> {
+  try {
+    await fetch('./api.php?action=delete_cash', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
     });
   } catch {}
 }

@@ -25,8 +25,10 @@ import {
   deleteMemberFromMySQL,
   syncAttendanceToMySQL,
   deleteAttendanceFromMySQL,
+  deleteMultipleAttendanceFromMySQL,
   syncCashToMySQL,
   deleteCashFromMySQL,
+  deleteMultipleCashFromMySQL,
   syncAllToMySQL,
   fetchFromMySQL,
   fetchAnnouncementsFromMySQL,
@@ -1526,6 +1528,7 @@ export async function deleteAttendanceByDate(tanggal: string, fallbackIds?: stri
     
     // 1. Primary deletion by exact date column
     const { error: err1 } = await supa.from('attendance').delete().eq('tanggal', normD);
+    deleteAttendanceFromMySQL('', normD);
     
     // 2. Fallback: if fallbackIds provided, delete by IDs as well to ensure 100% clean-up in database
     if (fallbackIds && fallbackIds.length > 0) {
@@ -1692,7 +1695,7 @@ export async function deleteCashFromDB(id: string, tx?: CashTransaction): Promis
 export async function deleteMultipleCashFromDB(ids: string[]): Promise<{ success: boolean; error?: string }> {
   try {
     if (ids && ids.length > 0) {
-      ids.forEach(id => deleteCashFromMySQL(id));
+      deleteMultipleCashFromMySQL(ids);
     }
     const supa = getSupabase();
     if (!ids || ids.length === 0) return { success: true };

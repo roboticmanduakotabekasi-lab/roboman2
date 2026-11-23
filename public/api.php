@@ -902,15 +902,26 @@ try {
 
         case 'delete_attendance':
             $id = $input['id'] ?? ($_GET['id'] ?? '');
+            $ids = $input['ids'] ?? [];
             $tanggal = $input['tanggal'] ?? '';
             $id_member = $input['id_member'] ?? '';
-            if ($id) {
+
+            if (!empty($ids) && is_array($ids)) {
+                $placeholders = implode(',', array_fill(0, count($ids), '?'));
+                $stmt = $pdo->prepare("DELETE FROM attendance WHERE id IN ($placeholders)");
+                $stmt->execute(array_values($ids));
+                echo json_encode(['success' => true]);
+            } elseif ($id) {
                 $stmt = $pdo->prepare("DELETE FROM attendance WHERE id = :id");
                 $stmt->execute([':id' => $id]);
                 echo json_encode(['success' => true]);
             } elseif ($tanggal && $id_member) {
                 $stmt = $pdo->prepare("DELETE FROM attendance WHERE tanggal = :tgl AND id_member = :mem");
                 $stmt->execute([':tgl' => $tanggal, ':mem' => $id_member]);
+                echo json_encode(['success' => true]);
+            } elseif ($tanggal) {
+                $stmt = $pdo->prepare("DELETE FROM attendance WHERE tanggal = :tgl");
+                $stmt->execute([':tgl' => $tanggal]);
                 echo json_encode(['success' => true]);
             } else {
                 echo json_encode(['success' => false, 'error' => 'Missing attendance id or criteria']);
@@ -919,7 +930,14 @@ try {
 
         case 'delete_cash':
             $id = $input['id'] ?? ($_GET['id'] ?? '');
-            if ($id) {
+            $ids = $input['ids'] ?? [];
+
+            if (!empty($ids) && is_array($ids)) {
+                $placeholders = implode(',', array_fill(0, count($ids), '?'));
+                $stmt = $pdo->prepare("DELETE FROM cash_transactions WHERE id IN ($placeholders)");
+                $stmt->execute(array_values($ids));
+                echo json_encode(['success' => true]);
+            } elseif ($id) {
                 $stmt = $pdo->prepare("DELETE FROM cash_transactions WHERE id = :id");
                 $stmt->execute([':id' => $id]);
                 echo json_encode(['success' => true]);
