@@ -57,12 +57,32 @@ export async function syncAttendanceToMySQL(record: AttendanceRecord): Promise<v
   } catch {}
 }
 
+export async function deleteAttendanceFromMySQL(id: string, tanggal?: string, id_member?: string): Promise<void> {
+  try {
+    await fetch('./api.php?action=delete_attendance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, tanggal, id_member }),
+    });
+  } catch {}
+}
+
 export async function syncCashToMySQL(tx: CashTransaction): Promise<void> {
   try {
     await fetch('./api.php?action=upsert_cash', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(tx),
+    });
+  } catch {}
+}
+
+export async function deleteCashFromMySQL(id: string): Promise<void> {
+  try {
+    await fetch('./api.php?action=delete_cash', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
     });
   } catch {}
 }

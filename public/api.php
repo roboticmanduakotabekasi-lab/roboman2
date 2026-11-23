@@ -509,11 +509,42 @@ try {
         case 'delete_member':
             $id = $input['id_member'] ?? ($input['nisn'] ?? ($_GET['id'] ?? ''));
             if ($id) {
+                // Cascade delete attendance and cash records in MySQL for this member
+                $pdo->prepare("DELETE FROM attendance WHERE id_member = :id")->execute([':id' => $id]);
+                $pdo->prepare("DELETE FROM cash_transactions WHERE id_member = :id")->execute([':id' => $id]);
                 $stmt = $pdo->prepare("DELETE FROM members WHERE id_member = :id OR nisn = :id");
                 $stmt->execute([':id' => $id]);
                 echo json_encode(['success' => true]);
             } else {
                 echo json_encode(['success' => false, 'error' => 'Missing member id']);
+            }
+            break;
+
+        case 'delete_attendance':
+            $id = $input['id'] ?? ($_GET['id'] ?? '');
+            $tanggal = $input['tanggal'] ?? '';
+            $id_member = $input['id_member'] ?? '';
+            if ($id) {
+                $stmt = $pdo->prepare("DELETE FROM attendance WHERE id = :id");
+                $stmt->execute([':id' => $id]);
+                echo json_encode(['success' => true]);
+            } elseif ($tanggal && $id_member) {
+                $stmt = $pdo->prepare("DELETE FROM attendance WHERE tanggal = :tgl AND id_member = :mem");
+                $stmt->execute([':tgl' => $tanggal, ':mem' => $id_member]);
+                echo json_encode(['success' => true]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'Missing attendance id or criteria']);
+            }
+            break;
+
+        case 'delete_cash':
+            $id = $input['id'] ?? ($_GET['id'] ?? '');
+            if ($id) {
+                $stmt = $pdo->prepare("DELETE FROM cash_transactions WHERE id = :id");
+                $stmt->execute([':id' => $id]);
+                echo json_encode(['success' => true]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'Missing cash transaction id']);
             }
             break;
 

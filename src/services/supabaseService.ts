@@ -24,7 +24,9 @@ import {
   syncMemberToMySQL,
   deleteMemberFromMySQL,
   syncAttendanceToMySQL,
+  deleteAttendanceFromMySQL,
   syncCashToMySQL,
+  deleteCashFromMySQL,
   syncAllToMySQL,
   fetchFromMySQL,
 } from './mysqlSyncService';
@@ -1392,6 +1394,7 @@ export async function deleteAttendanceFromDB(
   record?: { tanggal?: string; nisn?: string; namaAnggota?: string }
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    deleteAttendanceFromMySQL(id, record?.tanggal, record?.nisn);
     const supa = getSupabase();
     let hasError: string | undefined;
 
@@ -1597,6 +1600,7 @@ export async function upsertCashToDB(transaction: CashTransaction): Promise<{ su
 
 export async function deleteCashFromDB(id: string, tx?: CashTransaction): Promise<{ success: boolean; error?: string }> {
   try {
+    deleteCashFromMySQL(id);
     const supa = getSupabase();
     let hasError: string | undefined;
 
@@ -1633,6 +1637,9 @@ export async function deleteCashFromDB(id: string, tx?: CashTransaction): Promis
 
 export async function deleteMultipleCashFromDB(ids: string[]): Promise<{ success: boolean; error?: string }> {
   try {
+    if (ids && ids.length > 0) {
+      ids.forEach(id => deleteCashFromMySQL(id));
+    }
     const supa = getSupabase();
     if (!ids || ids.length === 0) return { success: true };
     const { error } = await supa.from('cash_transactions').delete().in('id', ids);
