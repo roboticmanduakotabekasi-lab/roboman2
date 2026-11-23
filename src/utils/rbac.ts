@@ -610,6 +610,33 @@ export function normalizeRole(
 }
 
 /**
+ * Helper to identify if a member or session is marked as Alumni, Keluar, Resigned, or Inactive.
+ * Inactive or graduated members strictly lose all executive editing and management clearance.
+ */
+export function isInactiveOrAlumni(session?: {
+  membershipStatus?: string | null;
+  status?: string | null;
+  role?: string | null;
+  username?: string | null;
+  email?: string | null;
+} | null): boolean {
+  if (!session) return false;
+  if (isHeadAdmin(session)) return false;
+  const status = (session.membershipStatus || (session as any).status || '').toLowerCase().trim();
+  const role = (session.role || '').toLowerCase().trim();
+  return (
+    status === 'alumni' ||
+    status === 'keluar' ||
+    status === 'resigned' ||
+    status === 'tidak aktif' ||
+    status === 'non-aktif' ||
+    role === 'alumni' ||
+    role === 'keluar' ||
+    role === 'resigned'
+  );
+}
+
+/**
  * Checks if a role or session belongs to Executive Board or Advisor category.
  * Accepts either:
  * - (session: UserSession | object)
@@ -778,9 +805,11 @@ export function hasAllPermissions(roleStr: string | undefined | null, permission
  * are strictly view-only.
  */
 export function canConfigureCalendar(
-  session: { role?: string | null; username?: string | null; email?: string | null; jabatan?: string | null } | null | undefined
+  session: { role?: string | null; username?: string | null; email?: string | null; jabatan?: string | null; membershipStatus?: string | null } | null | undefined
 ): boolean {
   if (!session) return false;
+  if (isHeadAdmin(session)) return true;
+  if (isInactiveOrAlumni(session)) return false;
   const canonical = getCanonicalRole(session);
   if (canonical === 'admin' || canonical === 'advisor') return true;
 
@@ -807,8 +836,11 @@ export function isTreasurer(session?: {
   jabatan?: string | null;
   membershipStatus?: string | null;
   username?: string | null;
+  email?: string | null;
 } | null): boolean {
   if (!session) return false;
+  if (isHeadAdmin(session)) return true;
+  if (isInactiveOrAlumni(session)) return false;
   const cleanJabatan = (session.jabatan || '').toLowerCase().trim();
   const cleanRole = (session.role || '').toLowerCase().trim();
   const cleanUser = (session.username || '').toLowerCase().trim();
@@ -967,6 +999,11 @@ export function hasSessionPermission(
   permission: Permission
 ): boolean {
   if (!session) return false;
+
+  // Strict Inactive / Alumni Lock: Graduated or resigned members strictly lose all elevated management & editing rights
+  if (isInactiveOrAlumni(session)) {
+    return false;
+  }
 
   // 0. Strict Member Directory Viewing & Export Authority:
   // ONLY Secretary, President, Vice President (BPH), Advisor, and Admin
@@ -1222,6 +1259,7 @@ export function canManageAnnouncements(session?: {
 } | null): boolean {
   if (!session) return false;
   if (isHeadAdmin(session)) return true;
+  if (isInactiveOrAlumni(session)) return false;
 
   const cleanJabatan = (session.jabatan || '').toLowerCase().trim();
   const cleanRole = (session.role || '').toLowerCase().trim();
@@ -1260,7 +1298,9 @@ export function canManageMemberData(session?: {
   email?: string | null;
 } | null): boolean {
   if (!session) return false;
-  if (isHeadAdmin(session) || isAdvisor(session)) return true;
+  if (isHeadAdmin(session)) return true;
+  if (isInactiveOrAlumni(session)) return false;
+  if (isAdvisor(session)) return true;
 
   const cleanJabatan = (session.jabatan || '').toLowerCase().trim();
   const cleanRole = (session.role || '').toLowerCase().trim();
@@ -1285,7 +1325,9 @@ export function canManageCashData(session?: {
   email?: string | null;
 } | null): boolean {
   if (!session) return false;
-  return isHeadAdmin(session) || isTreasurer(session);
+  if (isHeadAdmin(session)) return true;
+  if (isInactiveOrAlumni(session)) return false;
+  return isTreasurer(session);
 }
 
 /**
@@ -1301,6 +1343,7 @@ export function canManageGroupAttendance(session?: {
 } | null): boolean {
   if (!session) return false;
   if (isHeadAdmin(session)) return true;
+  if (isInactiveOrAlumni(session)) return false;
 
   const cleanJabatan = (session.jabatan || '').toLowerCase().trim();
   const cleanRole = (session.role || '').toLowerCase().trim();
@@ -1344,6 +1387,8 @@ export function canPromoteUserRole(session?: {
   email?: string | null;
 } | null): boolean {
   if (!session) return false;
+  if (isHeadAdmin(session)) return true;
+  if (isInactiveOrAlumni(session)) return false;
   const canonical = getCanonicalRole(session);
   if (canonical === 'admin' || canonical === 'advisor') return true;
 
