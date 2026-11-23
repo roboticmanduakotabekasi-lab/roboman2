@@ -25,6 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // 1. Konfigurasi Database MySQL Domainesia
 $db_host = getenv('DB_HOST') ?: 'localhost';
+$db_port = getenv('DB_PORT') ?: '3306';
 $db_name = getenv('DB_NAME') ?: 'mankota1_robotik';
 $db_user = getenv('DB_USER') ?: 'mankota1_robotik';
 $db_pass = getenv('DB_PASSWORD') ?: '3Bh4-IR$4eh%aHyW';
@@ -43,7 +44,7 @@ $lastError = '';
 
 foreach ($candidates as $c) {
     try {
-        $pdo = new PDO("mysql:host=$db_host;dbname={$c['name']};charset=utf8mb4", $c['user'], $c['pass'], [
+        $pdo = new PDO("mysql:host=$db_host;port=$db_port;dbname={$c['name']};charset=utf8mb4", $c['user'], $c['pass'], [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES => false,
@@ -299,16 +300,36 @@ function getClientIp() {
 }
 
 // Anti-Brute Force Rate Limiter (Protects Login, PIN verification, and Account Recovery)
-function checkRateLimit($pdo, $ip, $identifier, $type = 'login', $maxAttempts = 5, $windowMinutes = 15) {
+// Memisahkan limit per akun (5x) dan limit per IP (40x) agar siswa pada jaringan Wi-Fi lab yang sama tidak saling terkunci
+function checkRateLimit($pdo, $ip, $identifier, $type = 'login', $maxAccountAttempts = 5, $maxIpAttempts = 40, $windowMinutes = 15) {
     try {
         $cleanMinutes = (int)$windowMinutes;
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM login_attempts 
-            WHERE (ip_address = :ip OR identifier = :id) 
-              AND attempt_type = :type 
-              AND attempt_time > (NOW() - INTERVAL $cleanMinutes MINUTE)");
-        $stmt->execute([':ip' => $ip, ':id' => $identifier, ':type' => $type]);
-        $count = (int)$stmt->fetchColumn();
-        return $count < $maxAttempts;
+
+        // 1. Cek spesifik akun/identitas (Maks 5x percobaan salah untuk akun target)
+        if (!empty($identifier)) {
+            $stmtIdent = $pdo->prepare("SELECT COUNT(*) FROM login_attempts 
+                WHERE identifier = :id 
+                  AND attempt_type = :type 
+                  AND attempt_time > (NOW() - INTERVAL $cleanMinutes MINUTE)");
+            $stmtIdent->execute([':id' => $identifier, ':type' => $type]);
+            if ((int)$stmtIdent->fetchColumn() >= $maxAccountAttempts) {
+                return false;
+            }
+        }
+
+        // 2. Cek akumulasi IP publik (Maks 40x percobaan salah untuk memblokir bot spray)
+        if (!empty($ip)) {
+            $stmtIp = $pdo->prepare("SELECT COUNT(*) FROM login_attempts 
+                WHERE ip_address = :ip 
+                  AND attempt_type = :type 
+                  AND attempt_time > (NOW() - INTERVAL $cleanMinutes MINUTE)");
+            $stmtIp->execute([':ip' => $ip, ':type' => $type]);
+            if ((int)$stmtIp->fetchColumn() >= $maxIpAttempts) {
+                return false;
+            }
+        }
+
+        return true;
     } catch (Exception $e) {
         return true;
     }
@@ -323,8 +344,8 @@ function recordFailedAttempt($pdo, $ip, $identifier, $type = 'login') {
 
 function clearFailedAttempts($pdo, $ip, $identifier, $type = 'login') {
     try {
-        $stmt = $pdo->prepare("DELETE FROM login_attempts WHERE (ip_address = :ip OR identifier = :id) AND attempt_type = :type");
-        $stmt->execute([':ip' => $ip, ':id' => $identifier, ':type' => $type]);
+        $stmt = $pdo->prepare("DELETE FROM login_attempts WHERE identifier = :id AND attempt_type = :type");
+        $stmt->execute([':id' => $identifier, ':type' => $type]);
     } catch (Exception $e) {}
 }
 
@@ -1236,8 +1257,8 @@ try {
                         $stmt->execute([
                             ':id' => $id,
                             ':email' => $email,
-                            ':nama' => $m['nama_lengkap'] ?? ($m['namaLengkap'] ?? 'Member'),
-                            ':nis_kelas' => $m['nis_atau_kelas'] ?? ($m['nisAtauKelas'] ?? ''),
+                            ':nama' => $m['nama_lengkap'] ?? ($m['namaLengkap'] ?? ($m['fullName'] ?? 'Member')),
+                            ':nis_kelas' => $m['nis_atau_kelas'] ?? ($m['nisAtauKelas'] ?? ($m['nisn'] ?? '')),
                             ':jabatan' => $m['jabatan_ekskul'] ?? ($m['jabatanEkskul'] ?? 'member'),
                         ]);
                     }
