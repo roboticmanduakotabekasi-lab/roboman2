@@ -451,9 +451,21 @@ export const UniversalDataUploadModal: React.FC<UniversalDataUploadModalProps> =
         if (isReplace) {
           updatedList = previewMembers;
         } else {
-          const map = new Map<string, Member>(existingMembers.map((m) => [m.nisn, m]));
+          // Robust deduplication: key by clean NISN if present, otherwise by id_member or normalized fullName
+          const getMemberKey = (m: Member): string => {
+            const cleanNisn = m.nisn ? String(m.nisn).replace(/[^0-9]/g, '').trim() : '';
+            if (cleanNisn) return `nisn_${cleanNisn}`;
+            const cleanId = m.id_member !== undefined && m.id_member !== null ? String(m.id_member).trim() : '';
+            if (cleanId) return `id_${cleanId}`;
+            return `name_${String(m.fullName || '').trim().toLowerCase()}`;
+          };
+
+          const map = new Map<string, Member>();
+          existingMembers.forEach((m) => {
+            map.set(getMemberKey(m), m);
+          });
           previewMembers.forEach((m) => {
-            map.set(m.nisn, m);
+            map.set(getMemberKey(m), m);
           });
           updatedList = Array.from(map.values());
         }
@@ -510,7 +522,20 @@ export const UniversalDataUploadModal: React.FC<UniversalDataUploadModalProps> =
         if (isReplace) {
           updatedList = previewCash;
         } else {
-          updatedList = [...previewCash, ...existingCash];
+          // Robust deduplication: prevent double cash entries when uploading same CSV repeatedly
+          const getCashKey = (c: CashTransaction): string => {
+            if (c.id && !c.id.startsWith('cash_')) return c.id;
+            return `${c.tanggal}_${(c.namaAnggota || '').trim().toLowerCase()}_${c.jumlah}_${c.jenis}_${(c.keterangan || '').trim().toLowerCase()}`;
+          };
+
+          const map = new Map<string, CashTransaction>();
+          existingCash.forEach((c) => {
+            map.set(getCashKey(c), c);
+          });
+          previewCash.forEach((c) => {
+            map.set(getCashKey(c), c);
+          });
+          updatedList = Array.from(map.values());
         }
 
         if (onCashUpdated) {

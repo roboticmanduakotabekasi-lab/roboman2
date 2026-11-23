@@ -14,6 +14,9 @@ header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: SAMEORIGIN');
+header('X-XSS-Protection: 1; mode=block');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
@@ -191,6 +194,16 @@ function ensureTablesExist($pdo) {
             `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             `claimed_at` TIMESTAMP NULL DEFAULT NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+        CREATE TABLE IF NOT EXISTS `login_attempts` (
+            `id` INT AUTO_INCREMENT PRIMARY KEY,
+            `ip_address` VARCHAR(45) NOT NULL,
+            `identifier` VARCHAR(100) NOT NULL,
+            `attempt_type` VARCHAR(20) NOT NULL DEFAULT 'login',
+            `attempt_time` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            KEY `idx_ip_time` (`ip_address`, `attempt_time`),
+            KEY `idx_ident_time` (`identifier`, `attempt_time`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     ");
 
     // Self-healing columns check
@@ -275,6 +288,46 @@ function verifyPinPHP($attempt, $stored) {
     return verifyPasswordHashPHP($cleanAttempt, $stored);
 }
 
+// Client IP resolver
+function getClientIp() {
+    if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) return $_SERVER['HTTP_CF_CONNECTING_IP'];
+    if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+        $ips = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+        return trim($ips[0]);
+    }
+    return $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+}
+
+// Anti-Brute Force Rate Limiter (Protects Login, PIN verification, and Account Recovery)
+function checkRateLimit($pdo, $ip, $identifier, $type = 'login', $maxAttempts = 5, $windowMinutes = 15) {
+    try {
+        $cleanMinutes = (int)$windowMinutes;
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM login_attempts 
+            WHERE (ip_address = :ip OR identifier = :id) 
+              AND attempt_type = :type 
+              AND attempt_time > (NOW() - INTERVAL $cleanMinutes MINUTE)");
+        $stmt->execute([':ip' => $ip, ':id' => $identifier, ':type' => $type]);
+        $count = (int)$stmt->fetchColumn();
+        return $count < $maxAttempts;
+    } catch (Exception $e) {
+        return true;
+    }
+}
+
+function recordFailedAttempt($pdo, $ip, $identifier, $type = 'login') {
+    try {
+        $stmt = $pdo->prepare("INSERT INTO login_attempts (ip_address, identifier, attempt_type) VALUES (:ip, :id, :type)");
+        $stmt->execute([':ip' => $ip, ':id' => $identifier, ':type' => $type]);
+    } catch (Exception $e) {}
+}
+
+function clearFailedAttempts($pdo, $ip, $identifier, $type = 'login') {
+    try {
+        $stmt = $pdo->prepare("DELETE FROM login_attempts WHERE (ip_address = :ip OR identifier = :id) AND attempt_type = :type");
+        $stmt->execute([':ip' => $ip, ':id' => $identifier, ':type' => $type]);
+    } catch (Exception $e) {}
+}
+
 ensureTablesExist($pdo);
 
 $action = isset($_GET['action']) ? trim($_GET['action']) : '';
@@ -357,6 +410,65 @@ try {
             }
             break;
 
+        case 'setup_admin':
+        case 'setup-admin':
+        case 'auth/setup-admin':
+            $newAdminPass = trim($input['password'] ?? '');
+            if (strlen($newAdminPass) < 8) {
+                echo json_encode(['success' => false, 'message' => 'Kata sandi admin minimal 8 karakter']);
+                break;
+            }
+            $hashed = hash('sha256', $newAdminPass);
+            $stmt = $pdo->prepare("UPDATE user_accounts SET password = :p WHERE username = 'admin'");
+            $stmt->execute([':p' => $hashed]);
+            echo json_encode([
+                'success' => true,
+                'message' => 'Password admin berhasil diatur',
+                'account' => [
+                    'username' => 'admin',
+                    'name' => 'Admin Robotic MAN 2 Kota Bekasi',
+                    'role' => 'admin',
+                    'email' => 'roboticman2kotabekasi@gmail.com',
+                    'authProvider' => 'credentials'
+                ]
+            ]);
+            break;
+
+        case 'promote_user':
+        case 'admin/promote-user':
+            $username = trim($input['username'] ?? '');
+            $newRole = trim($input['newRole'] ?? ($input['role'] ?? ''));
+            if (!$username || !$newRole) {
+                echo json_encode(['success' => false, 'error' => 'Username dan role baru wajib diisi']);
+                break;
+            }
+            $protectedAccounts = ['admin', 'pembina', 'roboticman2kotabekasi'];
+            if (in_array(strtolower($username), $protectedAccounts)) {
+                echo json_encode(['success' => false, 'error' => 'Role akun administrator utama dilindungi']);
+                break;
+            }
+            $stmt = $pdo->prepare("UPDATE user_accounts SET role = :r WHERE username = :u");
+            $stmt->execute([':r' => $newRole, ':u' => $username]);
+            echo json_encode(['success' => true, 'message' => "Role $username berhasil diperbarui"]);
+            break;
+
+        case 'me':
+        case 'auth/me':
+            $u = trim($_GET['username'] ?? ($input['username'] ?? ''));
+            if (!$u) {
+                echo json_encode(['success' => false, 'error' => 'Username required']);
+                break;
+            }
+            $stmt = $pdo->prepare("SELECT username, name, role, email, nisn, auth_provider, avatar_url FROM user_accounts WHERE LOWER(username) = :u LIMIT 1");
+            $stmt->execute([':u' => strtolower($u)]);
+            $foundUser = $stmt->fetch();
+            if ($foundUser) {
+                echo json_encode(['success' => true, 'user' => $foundUser]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'User not found']);
+            }
+            break;
+
         case 'register_user':
         case 'register-member':
         case 'auth/register-member':
@@ -373,9 +485,17 @@ try {
                 break;
             }
 
-            if (strtolower($username) === 'admin') {
-                echo json_encode(['success' => false, 'error' => 'Username admin utama dilindungi oleh sistem']);
+            // Keamanan: Lindungi root accounts agar tidak dapat ditimpa via self-registration
+            $protectedAccounts = ['admin', 'pembina', 'roboticman2kotabekasi'];
+            if (in_array(strtolower($username), $protectedAccounts)) {
+                echo json_encode(['success' => false, 'error' => 'Username administrator dilindungi oleh sistem']);
                 break;
+            }
+
+            // Keamanan: Cegah Privilege Escalation pada public self-registration
+            $cleanRole = strtolower($role);
+            if ($cleanRole === 'admin' || $cleanRole === 'pembina' || strpos($cleanRole, 'executive') !== false) {
+                $role = 'Club Member';
             }
 
             $stmt = $pdo->prepare("INSERT INTO user_accounts 
@@ -405,6 +525,15 @@ try {
                 echo json_encode(['success' => false, 'error' => 'Identifier and password required']);
                 break;
             }
+
+            $clientIp = getClientIp();
+
+            // Anti-Brute Force Protection: Max 5 gagal dalam 15 menit
+            if (!checkRateLimit($pdo, $clientIp, $identifier, 'login', 5, 15)) {
+                echo json_encode(['success' => false, 'error' => 'Terlalu banyak percobaan login gagal. Mohon tunggu 15 menit demi keamanan akun.']);
+                break;
+            }
+
             $cleanId = strtolower($identifier);
             $cleanNisn = preg_replace('/[^0-9]/', '', $identifier);
 
@@ -424,6 +553,7 @@ try {
                 $pinMatched = verifyPinPHP($password, $storedPin);
 
                 if ($passMatched || $pinMatched) {
+                    clearFailedAttempts($pdo, $clientIp, $identifier, 'login');
                     echo json_encode([
                         'success' => true,
                         'user' => [
@@ -438,9 +568,11 @@ try {
                         ]
                     ]);
                 } else {
+                    recordFailedAttempt($pdo, $clientIp, $identifier, 'login');
                     echo json_encode(['success' => false, 'error' => 'Kombinasi pengguna dan kata sandi salah.']);
                 }
             } else {
+                recordFailedAttempt($pdo, $clientIp, $identifier, 'login');
                 echo json_encode(['success' => false, 'error' => 'Akun tidak ditemukan di database']);
             }
             break;
@@ -454,6 +586,15 @@ try {
                 echo json_encode(['success' => false, 'error' => 'NISN dan PIN wajib diisi']);
                 break;
             }
+
+            $clientIp = getClientIp();
+
+            // Anti-Brute Force Protection on 4-digit PIN: Max 5 gagal dalam 15 menit
+            if (!checkRateLimit($pdo, $clientIp, $nisn, 'pin', 5, 15)) {
+                echo json_encode(['success' => false, 'error' => 'Terlalu banyak percobaan PIN salah. Akses pemulihan dibatasi 15 menit.']);
+                break;
+            }
+
             $stmt = $pdo->prepare("SELECT username, name, role, email, nisn, recovery_pin FROM user_accounts 
                 WHERE REPLACE(nisn, ' ', '') = :nisn OR LOWER(username) = :u LIMIT 1");
             $stmt->execute([':nisn' => $nisn, ':u' => strtolower($nisn)]);
@@ -462,6 +603,7 @@ try {
                 $storedPin = (string)($user['recovery_pin'] ?? '');
                 $isMatch = verifyPinPHP($pin, $storedPin);
                 if ($isMatch) {
+                    clearFailedAttempts($pdo, $clientIp, $nisn, 'pin');
                     echo json_encode([
                         'success' => true,
                         'account' => [
@@ -472,9 +614,11 @@ try {
                         ]
                     ]);
                 } else {
+                    recordFailedAttempt($pdo, $clientIp, $nisn, 'pin');
                     echo json_encode(['success' => false, 'error' => 'PIN Pemulihan salah. Pastikan PIN 4-digit yang Anda masukkan benar.']);
                 }
             } else {
+                recordFailedAttempt($pdo, $clientIp, $nisn, 'pin');
                 echo json_encode(['success' => false, 'error' => 'Akun dengan NISN ini belum terdaftar atau belum diaktivasi.']);
             }
             break;
@@ -482,6 +626,8 @@ try {
         case 'reset_password_with_pin':
         case 'reset-password-with-pin':
         case 'auth/reset-password-with-pin':
+        case 'recover-with-pin':
+        case 'auth/recover-with-pin':
             $nisn = preg_replace('/[^0-9]/', '', $input['nisn'] ?? '');
             $pin = trim($input['pin'] ?? '');
             $newPassword = trim($input['newPassword'] ?? ($input['new_password'] ?? ''));
@@ -489,18 +635,28 @@ try {
                 echo json_encode(['success' => false, 'error' => 'NISN, PIN, dan kata sandi baru wajib diisi']);
                 break;
             }
+
+            $clientIp = getClientIp();
+
+            if (!checkRateLimit($pdo, $clientIp, $nisn, 'pin', 5, 15)) {
+                echo json_encode(['success' => false, 'error' => 'Terlalu banyak percobaan PIN salah. Mohon tunggu 15 menit.']);
+                break;
+            }
+
             $stmt = $pdo->prepare("SELECT username, recovery_pin FROM user_accounts 
                 WHERE REPLACE(nisn, ' ', '') = :nisn OR LOWER(username) = :u LIMIT 1");
             $stmt->execute([':nisn' => $nisn, ':u' => strtolower($nisn)]);
             $user = $stmt->fetch();
             if ($user) {
-                if (strtolower($user['username']) === 'admin') {
-                    echo json_encode(['success' => false, 'error' => 'Akun admin tidak dapat di-reset melalui menu pemulihan siswa.']);
+                $protectedAccounts = ['admin', 'pembina', 'roboticman2kotabekasi'];
+                if (in_array(strtolower($user['username']), $protectedAccounts)) {
+                    echo json_encode(['success' => false, 'error' => 'Akun administrator/pembina tidak dapat di-reset melalui menu pemulihan siswa.']);
                     break;
                 }
                 $storedPin = (string)($user['recovery_pin'] ?? '');
                 $isMatch = verifyPinPHP($pin, $storedPin);
                 if ($isMatch) {
+                    clearFailedAttempts($pdo, $clientIp, $nisn, 'pin');
                     // If not already a pbkdf2 or hash string, store sha256 or as provided
                     $hashedPass = (strpos($newPassword, 'pbkdf2') === 0 || strlen($newPassword) === 64) 
                         ? $newPassword 
@@ -509,9 +665,11 @@ try {
                     $updateStmt->execute([':p' => $hashedPass, ':u' => $user['username']]);
                     echo json_encode(['success' => true, 'message' => 'Kata sandi berhasil diperbarui!']);
                 } else {
+                    recordFailedAttempt($pdo, $clientIp, $nisn, 'pin');
                     echo json_encode(['success' => false, 'error' => 'PIN Pemulihan tidak cocok.']);
                 }
             } else {
+                recordFailedAttempt($pdo, $clientIp, $nisn, 'pin');
                 echo json_encode(['success' => false, 'error' => 'Akun tidak ditemukan.']);
             }
             break;
@@ -1020,8 +1178,9 @@ try {
         case 'delete_user':
             $username = trim($input['username'] ?? ($_GET['username'] ?? ''));
             if ($username) {
-                if (strtolower($username) === 'admin') {
-                    echo json_encode(['success' => false, 'error' => 'Akun admin utama dilindungi dan tidak boleh dihapus.']);
+                $protectedAccounts = ['admin', 'pembina', 'roboticman2kotabekasi'];
+                if (in_array(strtolower($username), $protectedAccounts)) {
+                    echo json_encode(['success' => false, 'error' => 'Akun administrator/pembina utama dilindungi dan tidak boleh dihapus.']);
                     break;
                 }
                 $stmt = $pdo->prepare("DELETE FROM user_accounts WHERE username = :u");
