@@ -201,6 +201,107 @@ try {
             ]);
             break;
 
+        case 'lookup_member':
+            $nisn = isset($_GET['nisn']) ? trim($_GET['nisn']) : ($input['nisn'] ?? '');
+            if (!$nisn) {
+                echo json_encode(['success' => false, 'error' => 'NISN required']);
+                break;
+            }
+            $cleanNisn = preg_replace('/[^0-9]/', '', $nisn);
+            $stmt = $pdo->prepare("SELECT * FROM members WHERE REPLACE(nisn, ' ', '') = :nisn OR REPLACE(id_member, ' ', '') = :nisn LIMIT 1");
+            $stmt->execute([':nisn' => $cleanNisn]);
+            $found = $stmt->fetch();
+            if ($found) {
+                echo json_encode([
+                    'success' => true,
+                    'member' => [
+                        'id_member' => $found['id_member'],
+                        'nisn' => $found['nisn'] ?: $cleanNisn,
+                        'fullName' => $found['full_name'],
+                        'grade' => $found['grade'] ?: 'X',
+                        'classRoom' => $found['class_room'] ?: 'A',
+                        'status' => $found['status'] ?: 'Aktif',
+                        'email' => $found['email'] ?: '',
+                        'role' => $found['role'] ?: 'member',
+                        'jabatan' => $found['jabatan'] ?: 'member',
+                    ]
+                ]);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Member not found in MySQL']);
+            }
+            break;
+
+        case 'register_user':
+            $username = trim($input['username'] ?? '');
+            $password = trim($input['password'] ?? '');
+            $name = trim($input['name'] ?? $username);
+            $email = trim($input['email'] ?? '');
+            $nisn = trim($input['nisn'] ?? '');
+            $pin = trim($input['recoveryPin'] ?? ($input['recovery_pin'] ?? ''));
+            $role = trim($input['role'] ?? 'Club Member');
+
+            if (!$username || !$password) {
+                echo json_encode(['success' => false, 'error' => 'Username and password required']);
+                break;
+            }
+
+            $stmt = $pdo->prepare("INSERT INTO user_accounts 
+                (username, password, name, role, email, nisn, recovery_pin, auth_provider)
+                VALUES (:user, :pass, :name, :role, :email, :nisn, :pin, 'credentials')
+                ON DUPLICATE KEY UPDATE 
+                    password = VALUES(password), name = VALUES(name), email = VALUES(email),
+                    nisn = VALUES(nisn), recovery_pin = VALUES(recovery_pin)");
+            $stmt->execute([
+                ':user' => $username,
+                ':pass' => $password,
+                ':name' => $name,
+                ':role' => $role,
+                ':email' => $email,
+                ':nisn' => $nisn,
+                ':pin' => $pin,
+            ]);
+
+            echo json_encode(['success' => true, 'message' => 'User registered successfully']);
+            break;
+
+        case 'login':
+            $identifier = trim($input['identifier'] ?? '');
+            $password = trim($input['password'] ?? '');
+            if (!$identifier || !$password) {
+                echo json_encode(['success' => false, 'error' => 'Identifier and password required']);
+                break;
+            }
+            $cleanId = strtolower($identifier);
+            $cleanNisn = preg_replace('/[^0-9]/', '', $identifier);
+
+            $stmt = $pdo->prepare("SELECT * FROM user_accounts 
+                WHERE LOWER(username) = :id 
+                   OR LOWER(email) = :id 
+                   OR (:nisn != '' AND REPLACE(nisn, ' ', '') = :nisn) 
+                LIMIT 1");
+            $stmt->execute([':id' => $cleanId, ':nisn' => $cleanNisn]);
+            $user = $stmt->fetch();
+
+            if ($user) {
+                echo json_encode([
+                    'success' => true,
+                    'user' => [
+                        'username' => $user['username'],
+                        'password' => $user['password'],
+                        'name' => $user['name'],
+                        'role' => $user['role'],
+                        'email' => $user['email'],
+                        'nisn' => $user['nisn'],
+                        'recovery_pin' => $user['recovery_pin'],
+                        'auth_provider' => $user['auth_provider'] ?: 'credentials',
+                        'avatar_url' => $user['avatar_url'] ?: '',
+                    ]
+                ]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'User not found in MySQL']);
+            }
+            break;
+
         case 'sync_all':
             // Batch push from React App to MySQL
             $members = $input['members'] ?? [];

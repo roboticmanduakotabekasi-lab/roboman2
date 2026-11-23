@@ -163,8 +163,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onBackToDa
     classRoom?: string;
   } | null>(null);
 
-  // NISN Verification
-  const matchedStudentFromNisn = useMemo(() => {
+  // Remote lookup state for NISN verification across devices & databases
+  const [remoteMatchedStudent, setRemoteMatchedStudent] = useState<any | null>(null);
+  const [isSearchingNisn, setIsSearchingNisn] = useState(false);
+
+  // NISN Verification (Local Cache & Roster First)
+  const localMatchedStudent = useMemo(() => {
     const clean = signUpNisn.replace(/[^0-9]/g, '').trim();
     if (!clean || clean.length < 8) return null;
 
@@ -207,6 +211,98 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onBackToDa
       return mNisn === clean || (m.id_member && String(m.id_member) === clean);
     }) || null;
   }, [signUpNisn]);
+
+  // Asynchronous remote lookup to MySQL (api.php) and Supabase if not found locally
+  useEffect(() => {
+    const clean = signUpNisn.replace(/[^0-9]/g, '').trim();
+    if (clean.length < 8) {
+      setRemoteMatchedStudent(null);
+      setIsSearchingNisn(false);
+      return;
+    }
+
+    if (localMatchedStudent) {
+      setRemoteMatchedStudent(null);
+      setIsSearchingNisn(false);
+      return;
+    }
+
+    let isMounted = true;
+    setIsSearchingNisn(true);
+
+    const lookupRemoteMember = async () => {
+      try {
+        // 1. Check MySQL Domainesia via api.php
+        try {
+          const res = await fetch(`./api.php?action=lookup_member&nisn=${encodeURIComponent(clean)}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.success && data.member && isMounted) {
+              setRemoteMatchedStudent(data.member);
+              // Cache in local storage for fast subsequent loads
+              try {
+                const existing = JSON.parse(localStorage.getItem('robotics_members') || '[]');
+                if (Array.isArray(existing) && !existing.some((m: any) => String(m.nisn).trim() === clean)) {
+                  localStorage.setItem('robotics_members', JSON.stringify([...existing, data.member]));
+                }
+              } catch {}
+              setIsSearchingNisn(false);
+              return;
+            }
+          }
+        } catch {}
+
+        // 2. Check Supabase members table
+        try {
+          const supa = getSupabase();
+          const { data, error } = await supa
+            .from('members')
+            .select('*')
+            .or(`nisn.eq.${clean},id_member.eq.${clean}`)
+            .limit(1);
+
+          if (!error && data && data.length > 0 && isMounted) {
+            const found = data[0];
+            const mapped = {
+              id_member: found.id_member || clean,
+              fullName: found.full_name || found.fullName || 'Active Member',
+              nisn: found.nisn || clean,
+              grade: found.grade || 'X',
+              classRoom: found.class_room || found.classRoom || 'A',
+              status: found.status || 'Aktif',
+              role: found.role || 'member',
+              jabatan: found.jabatan || 'member',
+              email: found.email || '',
+            };
+            setRemoteMatchedStudent(mapped);
+            // Cache in local storage
+            try {
+              const existing = JSON.parse(localStorage.getItem('robotics_members') || '[]');
+              if (Array.isArray(existing) && !existing.some((m: any) => String(m.nisn).trim() === clean)) {
+                localStorage.setItem('robotics_members', JSON.stringify([...existing, mapped]));
+              }
+            } catch {}
+            setIsSearchingNisn(false);
+            return;
+          }
+        } catch {}
+
+        if (isMounted) {
+          setRemoteMatchedStudent(null);
+        }
+      } finally {
+        if (isMounted) setIsSearchingNisn(false);
+      }
+    };
+
+    lookupRemoteMember();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [signUpNisn, localMatchedStudent]);
+
+  const matchedStudentFromNisn = localMatchedStudent || remoteMatchedStudent;
 
   // Otomatis isi Nama Lengkap resmi dan jadikan NISN sebagai username saat NISN terdeteksi
   useEffect(() => {
@@ -1418,8 +1514,16 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onBackToDa
                       </motion.div>
                     )}
 
+                    {/* Checking NISN loading indicator */}
+                    {isSearchingNisn && (
+                      <div className="p-2.5 rounded-xl bg-sky-50 border border-sky-200 text-sky-800 text-xs flex items-center gap-2">
+                        <div className="w-3.5 h-3.5 border-2 border-sky-600 border-t-transparent rounded-full animate-spin shrink-0" />
+                        <span className="font-medium text-[11px]">{isEn ? 'Searching member database...' : 'Memeriksa database keanggotaan...'}</span>
+                      </div>
+                    )}
+
                     {/* Warning if 10 digits entered but not found in member database */}
-                    {signUpNisn.replace(/[^0-9]/g, '').length === 10 && !matchedStudentFromNisn && (
+                    {!isSearchingNisn && signUpNisn.replace(/[^0-9]/g, '').length === 10 && !matchedStudentFromNisn && (
                       <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2">
                         <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                         <div>

@@ -403,6 +403,33 @@ export async function registerNewAccount(params: RegisterAccountParams): Promise
     } catch {}
   }
 
+  // Fallback: If NISN not in local storage, query MySQL (api.php) and Supabase
+  if (cleanNisn && (!displayName || displayName === normUser)) {
+    try {
+      const res = await fetch(`./api.php?action=lookup_member&nisn=${encodeURIComponent(cleanNisn)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.success && data.member?.fullName) {
+          displayName = data.member.fullName;
+        }
+      }
+    } catch {}
+
+    if (!displayName || displayName === normUser) {
+      try {
+        const supa = getSupabase();
+        const { data } = await supa
+          .from('members')
+          .select('full_name, fullName')
+          .or(`nisn.eq.${cleanNisn},id_member.eq.${cleanNisn}`)
+          .limit(1);
+        if (data && data.length > 0) {
+          displayName = data[0].full_name || data[0].fullName || displayName;
+        }
+      } catch {}
+    }
+  }
+
   // Prevent collisions with isolated demo accounts
   if (normUser.startsWith('demo_') || normUser === 'demo' || normUser === 'demo_tamu') {
     return { 
@@ -594,6 +621,25 @@ export async function registerNewAccount(params: RegisterAccountParams): Promise
     console.warn('Failed to insert directly into Supabase user_accounts:', err);
   }
 
+  // 8.5. Persist to MySQL database (user_accounts table) via api.php
+  try {
+    await fetch('./api.php?action=register_user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: newAccount.username,
+        password: newAccount.password,
+        name: newAccount.name,
+        role: newAccount.role,
+        email: newAccount.email,
+        nisn: newAccount.nisn,
+        recoveryPin: newAccount.recoveryPin,
+      }),
+    });
+  } catch (err) {
+    console.warn('api.php user_accounts register notice:', err);
+  }
+
   // 9. Save to local storage
   addOrUpdateAccount(newAccount);
 
@@ -703,6 +749,49 @@ export async function verifyAccountCredentials(
   } catch (err) {
     // Continue local fallback
   }
+
+  // 2.5. Verify against MySQL Domainesia user_accounts via api.php
+  try {
+    const res = await fetch('./api.php?action=login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        identifier: normId,
+        password: rawPassword,
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.success && data.user) {
+        const row = data.user;
+        const isPasswordMatched = await verifyPasswordMatch(passwordAttempt, row.password);
+        const storedPin = String(row.recovery_pin || '').trim();
+        const isPinMatched = Boolean(
+          storedPin && (
+            storedPin.startsWith('pin_v1$') || storedPin.startsWith('sha256:')
+              ? await verifyPasswordMatch(passwordAttempt, storedPin)
+              : storedPin === passwordAttempt.trim()
+          )
+        );
+
+        if (isPasswordMatched || isPinMatched) {
+          const dbAcc: AccountConfig = {
+            username: String(row.username).trim(),
+            password: row.password,
+            recoveryPin: storedPin || undefined,
+            name: String(row.name || row.username).trim(),
+            role: String(row.role || 'Club Member').trim(),
+            email: String(row.email || '').trim(),
+            nisn: row.nisn ? String(row.nisn).trim() : undefined,
+            authProvider: row.auth_provider === 'google' ? 'google' : 'credentials',
+            avatarUrl: row.avatar_url || '',
+          };
+          addOrUpdateAccount(dbAcc);
+          return dbAcc;
+        }
+      }
+    }
+  } catch {}
 
   // 3. Verify against local accounts (by username, email, or NISN)
   const accounts = getCustomAccounts();
