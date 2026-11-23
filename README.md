@@ -183,7 +183,7 @@ HOST=0.0.0.0
 # PRIMARY ADMINISTRATOR CREDENTIALS & SESSION SECURITY (SERVER-ONLY)
 # ==============================================================================
 # Master admin email used for initial authentication and verification
-ADMIN_EMAIL=roboticman2kotabekasi@gmail.com
+ADMIN_EMAIL=admin@your-domain.sch.id
 
 # Strong master admin password (minimum 12 characters, server-only)
 ADMIN_PASSWORD=your_secure_admin_password_min_12_chars
@@ -216,7 +216,7 @@ DB_PASSWORD=your_database_password
 |:---|:---|:---|:---|
 | `NODE_ENV` | Backend (`server.ts`) | `development` | Set to `production` when serving compiled `dist/` bundle |
 | `PORT` / `HOST` | Backend (`server.ts`) | `3000` / `0.0.0.0` | HTTP bind host & port |
-| `ADMIN_EMAIL` | Backend (`api/_auth.ts`) & Frontend | `roboticman2kotabekasi@gmail.com` | Master administrative login email |
+| `ADMIN_EMAIL` | Backend (`api/_auth.ts`) & Frontend | `admin@your-domain.sch.id` | Master administrative login email |
 | `ADMIN_PASSWORD` | Backend & Client Storage | *Configured on setup* | Master password (multi-format encrypted) |
 | `SESSION_SECRET` | Backend (`api/_auth.ts`) | *Random per process if unset* | Persistent secret for HMAC-SHA256 `HttpOnly` cookie verification |
 | `VITE_SUPABASE_URL` | Frontend (`supabase.ts`) | *Empty* | Supabase cloud endpoint URL |
