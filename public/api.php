@@ -883,11 +883,17 @@ try {
         case 'delete_member':
             $id = $input['id_member'] ?? ($input['nisn'] ?? ($_GET['id'] ?? ''));
             if ($id) {
-                // Cascade delete attendance and cash records in MySQL for this member
-                $pdo->prepare("DELETE FROM attendance WHERE id_member = :id")->execute([':id' => $id]);
-                $pdo->prepare("DELETE FROM cash_transactions WHERE id_member = :id")->execute([':id' => $id]);
-                $stmt = $pdo->prepare("DELETE FROM members WHERE id_member = :id OR nisn = :id");
-                $stmt->execute([':id' => $id]);
+                $mStmt = $pdo->prepare("SELECT id_member, nisn FROM members WHERE id_member = :id OR nisn = :id LIMIT 1");
+                $mStmt->execute([':id' => $id]);
+                $mem = $mStmt->fetch();
+                $targetId = $mem ? $mem['id_member'] : $id;
+                $targetNisn = $mem ? $mem['nisn'] : $id;
+
+                // Cascade delete attendance and cash records in MySQL for this member (by id and nisn)
+                $pdo->prepare("DELETE FROM attendance WHERE id_member = :id OR id_member = :nisn")->execute([':id' => $targetId, ':nisn' => $targetNisn]);
+                $pdo->prepare("DELETE FROM cash_transactions WHERE id_member = :id OR id_member = :nisn")->execute([':id' => $targetId, ':nisn' => $targetNisn]);
+                $stmt = $pdo->prepare("DELETE FROM members WHERE id_member = :id OR nisn = :nisn");
+                $stmt->execute([':id' => $targetId, ':nisn' => $targetNisn]);
                 echo json_encode(['success' => true]);
             } else {
                 echo json_encode(['success' => false, 'error' => 'Missing member id']);

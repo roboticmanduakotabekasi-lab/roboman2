@@ -112,10 +112,13 @@ DROP TABLE IF EXISTS `materials_assignments`;
 CREATE TABLE `materials_assignments` (
   `id` VARCHAR(100) NOT NULL,
   `title` VARCHAR(200) NOT NULL,
-  `description` TEXT,
-  `type` ENUM('material', 'assignment') NOT NULL DEFAULT 'material',
+  `description` TEXT NOT NULL,
+  `type` VARCHAR(20) NOT NULL DEFAULT 'material',
+  `deadline` DATETIME NULL DEFAULT NULL,
   `attachment_url` TEXT,
-  `deadline` TIMESTAMP NULL DEFAULT NULL,
+  `grading_type` VARCHAR(20) DEFAULT 'numeric',
+  `max_score` DECIMAL(5,2) DEFAULT 100.00,
+  `created_by` VARCHAR(100) DEFAULT '',
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -127,15 +130,50 @@ DROP TABLE IF EXISTS `assignment_submissions`;
 CREATE TABLE `assignment_submissions` (
   `id` VARCHAR(100) NOT NULL,
   `assignment_id` VARCHAR(100) NOT NULL,
-  `student_id` VARCHAR(50) NOT NULL,
-  `student_name` VARCHAR(150) DEFAULT '',
-  `submission_url` TEXT,
+  `student_id` VARCHAR(100) NOT NULL,
+  `student_email` VARCHAR(150) NOT NULL,
+  `student_name` VARCHAR(150) NOT NULL,
   `submission_text` TEXT,
-  `score` INT DEFAULT NULL,
+  `submission_link` TEXT,
+  `status` VARCHAR(30) DEFAULT 'submitted',
+  `score_numeric` DECIMAL(5,2) NULL,
+  `score_binary` VARCHAR(30) NULL,
   `feedback` TEXT,
   `submitted_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `graded_at` TIMESTAMP NULL DEFAULT NULL,
+  `graded_by` VARCHAR(100) DEFAULT '',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sub_assignment_student` (`assignment_id`, `student_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------------------------
+-- 8. TABEL ALLOWED_MEMBERS (Daftar Siswa Terdaftar / Roster)
+-- ------------------------------------------------------------------------------
+DROP TABLE IF EXISTS `allowed_members`;
+CREATE TABLE `allowed_members` (
+  `id` VARCHAR(100) NOT NULL,
+  `email` VARCHAR(150) NOT NULL UNIQUE,
+  `nama_lengkap` VARCHAR(150) NOT NULL,
+  `nis_atau_kelas` VARCHAR(50) DEFAULT '',
+  `jabatan_ekskul` VARCHAR(50) DEFAULT 'member',
+  `status_akun` VARCHAR(30) DEFAULT 'unclaimed',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `claimed_at` TIMESTAMP NULL DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------------------------
+-- 9. TABEL LOGIN_ATTEMPTS (Anti-Brute Force Protection)
+-- ------------------------------------------------------------------------------
+DROP TABLE IF EXISTS `login_attempts`;
+CREATE TABLE `login_attempts` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `ip_address` VARCHAR(45) NOT NULL,
+  `identifier` VARCHAR(100) NOT NULL,
+  `attempt_type` VARCHAR(20) NOT NULL DEFAULT 'login',
+  `attempt_time` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  KEY `idx_ip_time` (`ip_address`, `attempt_time`),
+  KEY `idx_ident_time` (`identifier`, `attempt_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
@@ -144,6 +182,6 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- INSIALISASI AKUN ADMINISTRATOR UTAMA (SIAP LOGIN)
 -- ==============================================================================
 INSERT INTO `user_accounts` (`username`, `password`, `name`, `role`, `email`, `nisn`) VALUES
-('admin', '$2b$10$vI8aWBnW3fID.ZQ4/zo1G.qytHHvUQe.1GgXkQ8k.5eJzN60Hq3qC', 'Administrator roboman2', 'Pengurus Inti', 'roboticman2kotabekasi@gmail.com', '197505121998031001')
+('admin', '3bb62e9d75c65289a724a94ec88ff9a0d1ff647652c00300d1c6dd1466bf15c0', 'Admin Robotic MAN 2 Kota Bekasi', 'admin', 'roboticman2kotabekasi@gmail.com', '197505121998031001')
 ON DUPLICATE KEY UPDATE `name`=VALUES(`name`);
 

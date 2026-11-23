@@ -934,10 +934,10 @@ export async function fetchUserAccountsFromDB(): Promise<AccountConfig[]> {
     if (!error && data && data.length > 0) {
       return data.map((row: any) => ({
         username: String(row.username || '').trim(),
-        password: String(row.password || ''),
         name: String(row.name || '').trim(),
         role: String(row.role || 'Pengurus Inti').trim(),
         email: String(row.email || '').trim(),
+        nisn: row.nisn ? String(row.nisn).trim() : undefined,
         authProvider: (row.auth_provider === 'google' ? 'google' : 'credentials') as 'credentials' | 'google',
         avatarUrl: row.avatar_url || '',
       }));
