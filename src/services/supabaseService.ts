@@ -1147,10 +1147,14 @@ export async function upsertMemberToDB(member: Member, originalNisn?: string): P
 
 export async function upsertMembersBatchToDB(members: Member[]): Promise<{ success: boolean; insertedCount: number; error?: string }> {
   try {
-    const supa = getSupabase();
     if (!members.length) {
       return { success: true, insertedCount: 0 };
     }
+
+    // Sync to MySQL Domainesia backend in background
+    syncAllToMySQL(members, [], []);
+
+    const supa = getSupabase();
 
     // 1. Try with composite primary key 'account_username,id_member' first (isolated multi-tenant)
     let idMemPayload = members.map(m => mapMemberToDB(m, 'id_member'));
@@ -1392,8 +1396,12 @@ export async function bulkUpsertAttendanceToDB(
   cleanExistingDate: boolean = false
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const supa = getSupabase();
     if (records.length === 0) return { success: true };
+
+    // Sync to MySQL Domainesia backend in background
+    syncAllToMySQL([], records, []);
+
+    const supa = getSupabase();
     const targetDate = String(records[0].tanggal || '').slice(0, 10).trim();
 
     // Clean up existing records for that date only when explicitly requested (e.g. Tandai Semua Hadir)
@@ -1779,8 +1787,12 @@ export async function deleteAllCashFromDB(
 
 export async function bulkUpsertCashToDB(transactions: CashTransaction[]): Promise<{ success: boolean; error?: string }> {
   try {
-    const supa = getSupabase();
     if (transactions.length === 0) return { success: true };
+
+    // Sync to MySQL Domainesia backend in background
+    syncAllToMySQL([], [], transactions);
+
+    const supa = getSupabase();
 
     // 1. Primary payload (matching SQL schema: id_member)
     const payloadIdMember = transactions.map((t, idx) => {
@@ -3593,7 +3605,6 @@ export async function submitSelfAttendanceToDB(record: {
       return { success: false, error: windowCheck.reason };
     }
 
-    const supa = getSupabase();
     const id = `att_self_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
     const payload = {
       id,
@@ -3606,6 +3617,19 @@ export async function submitSelfAttendanceToDB(record: {
       submitted_by: record.userId || null,
       created_at: new Date().toISOString(),
     };
+
+    // 1. Sync immediately to MySQL Domainesia backend via api.php
+    syncAttendanceToMySQL({
+      id,
+      tanggal: record.tanggal,
+      nisn: record.nisn,
+      id_member: record.nisn,
+      namaAnggota: record.namaAnggota,
+      status: record.status as any,
+      notes: record.notes,
+    });
+
+    const supa = getSupabase();
 
     const { error } = await supa
       .from('attendance')

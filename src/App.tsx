@@ -75,6 +75,7 @@ import {
   deleteAnnouncementInDB,
   fetchMaterialsAssignmentsFromDB
 } from './services/supabaseService';
+import { fetchFromMySQL } from './services/mysqlSyncService';
 
 // Components
 import { Navbar } from './components/Navbar';
@@ -1238,27 +1239,21 @@ export default function App() {
           const safeMembers = sanitizeMemberList(supaResult.members);
           setMembers(safeMembers);
           localStorage.setItem(`robotics_${storageKeyPrefix}_members`, JSON.stringify(safeMembers));
-          if (session.username === 'admin') {
-            localStorage.setItem('robotics_members', JSON.stringify(safeMembers));
-          }
+          localStorage.setItem('robotics_members', JSON.stringify(safeMembers));
         }
 
         if (supaResult.attendance && supaResult.attendance.length > 0) {
           const safeAttendance = sanitizeAttendanceList(supaResult.attendance);
           setAttendance(safeAttendance);
           localStorage.setItem(`robotics_${storageKeyPrefix}_attendance`, JSON.stringify(safeAttendance));
-          if (session.username === 'admin') {
-            localStorage.setItem('robotics_attendance', JSON.stringify(safeAttendance));
-          }
+          localStorage.setItem('robotics_attendance', JSON.stringify(safeAttendance));
         }
 
         if (supaResult.cash && supaResult.cash.length > 0) {
           const safeCash = sanitizeCashList(supaResult.cash);
           setCash(safeCash);
           localStorage.setItem(`robotics_${storageKeyPrefix}_cash`, JSON.stringify(safeCash));
-          if (session.username === 'admin') {
-            localStorage.setItem('robotics_cash', JSON.stringify(safeCash));
-          }
+          localStorage.setItem('robotics_cash', JSON.stringify(safeCash));
         }
 
         if (supaResult.accounts && supaResult.accounts.length > 0) {
@@ -1383,6 +1378,29 @@ export default function App() {
       };
     }
   }, [session, fetchAllData]);
+
+  // Pre-load public roster & announcements on first app mount so Activation & Landing page work instantly on new devices
+  useEffect(() => {
+    let isMounted = true;
+    const preloadPublicRoster = async () => {
+      try {
+        const mysqlData = await fetchFromMySQL();
+        if (mysqlData && isMounted) {
+          if (mysqlData.members && mysqlData.members.length > 0) {
+            const safe = sanitizeMemberList(mysqlData.members);
+            setMembers((prev) => (prev.length <= INITIAL_MEMBERS.length ? safe : prev));
+            try {
+              localStorage.setItem('robotics_members', JSON.stringify(safe));
+            } catch {}
+          }
+        }
+      } catch {}
+    };
+    preloadPublicRoster();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleSyncAllData = async () => {
     setIsSyncing(true);
