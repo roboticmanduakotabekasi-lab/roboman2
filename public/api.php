@@ -22,20 +22,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // 1. Konfigurasi Database MySQL Domainesia
 $db_host = getenv('DB_HOST') ?: 'localhost';
-$db_name = getenv('DB_NAME') ?: 'robotakman2kotbek';
-$db_user = getenv('DB_USER') ?: 'robotakman2kotbek';
-$db_pass = getenv('DB_PASSWORD') ?: 'robodih';
+$db_name = getenv('DB_NAME') ?: 'mankota1_robotik';
+$db_user = getenv('DB_USER') ?: 'mankota1_robotik';
+$db_pass = getenv('DB_PASSWORD') ?: '3Bh4-IR$4eh%aHyW';
 
 // Kandidat koneksi database MySQL cPanel (Mendukung semua varian nama & kredensial)
 $candidates = [
     ['name' => $db_name, 'user' => $db_user, 'pass' => $db_pass],
-    ['name' => 'mankota1_' . $db_name, 'user' => 'mankota1_' . $db_user, 'pass' => $db_pass],
     ['name' => 'mankota1_robotik', 'user' => 'mankota1_robotik', 'pass' => '3Bh4-IR$4eh%aHyW'],
-    ['name' => 'mankota1_robotik', 'user' => 'mankota1_robotik', 'pass' => 'robodih'],
-    ['name' => 'mankota1_' . $db_name, 'user' => 'mankota1_' . $db_user, 'pass' => '3Bh4-IR$4eh%aHyW'],
-    ['name' => 'mankota1_robotik', 'user' => 'mankota1_' . $db_user, 'pass' => $db_pass],
-    ['name' => 'robotakman2kotbek', 'user' => 'robotakman2kotbek', 'pass' => 'robodih'],
+    ['name' => 'robotakman2kotbek', 'user' => 'robotakman2kotbek', 'pass' => '3Bh4-IR$4eh%aHyW'],
     ['name' => 'robotik', 'user' => 'robotik', 'pass' => '3Bh4-IR$4eh%aHyW'],
+    ['name' => 'mankota1_robotakman2kotbek', 'user' => 'mankota1_robotakman2kotbek', 'pass' => '3Bh4-IR$4eh%aHyW'],
 ];
 
 $pdo = null;
