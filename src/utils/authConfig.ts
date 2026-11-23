@@ -499,18 +499,19 @@ export async function registerNewAccount(params: RegisterAccountParams): Promise
     const contentType = res.headers.get('content-type') || '';
     if (contentType.includes('application/json')) {
       const data = await res.json();
-      if (res.ok && data && data.success && data.account) {
+      if (res.ok && data && data.success && (data.account || data.user)) {
         if (data.token) {
           setMemoryAuthToken(data.token);
         }
+        const serverData = data.account || data.user || {};
         const serverAcc: AccountConfig = {
-          username: data.account.username || normUser,
-          name: data.account.name || displayName,
-          role: data.account.role || role,
-          email: data.account.email || normEmail,
-          nisn: data.account.nisn || cleanNisn,
+          username: serverData.username || normUser,
+          name: serverData.name || displayName,
+          role: serverData.role || role,
+          email: serverData.email || normEmail,
+          nisn: serverData.nisn || cleanNisn,
           authProvider: 'credentials',
-          avatarUrl: data.account.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(normUser)}`,
+          avatarUrl: serverData.avatarUrl || serverData.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(normUser)}`,
           token: data.token,
         };
         const { token: _omit, ...cacheAcc } = serverAcc;
@@ -680,20 +681,21 @@ export async function verifyAccountCredentials(
     const contentType = res.headers.get('content-type') || '';
     if (res.ok && contentType.includes('application/json')) {
       const data = await res.json();
-      if (data && data.success && data.account) {
+      if (data && data.success && (data.account || data.user)) {
         if (data.token) {
           setMemoryAuthToken(data.token);
         }
+        const serverData = data.account || data.user || {};
         const verifiedAcc: AccountConfig = {
-          username: data.account.username || normId,
-          name: data.account.name || normId,
-          role: data.account.role || 'Club Member',
-          email: data.account.email || '',
-          nisn: data.account.nisn,
-          authProvider: data.account.authProvider || 'credentials',
-          avatarUrl: data.account.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${normId}`,
+          username: serverData.username || normId,
+          name: serverData.name || normId,
+          role: serverData.role || 'Club Member',
+          email: serverData.email || '',
+          nisn: serverData.nisn,
+          authProvider: serverData.authProvider || serverData.auth_provider || 'credentials',
+          avatarUrl: serverData.avatarUrl || serverData.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${normId}`,
           token: data.token,
-          isDemo: Boolean(data.account.isDemo),
+          isDemo: Boolean(serverData.isDemo),
         };
         if (!verifiedAcc.isDemo) {
           const { token: _omit, ...cacheAcc } = verifiedAcc;
@@ -1232,14 +1234,15 @@ export async function verifyStudentRecoveryPin(
 
     if (res.ok) {
       const data = await res.json();
-      if (data?.success && data.account) {
+      if (data?.success && (data.account || data.user)) {
+        const acc = data.account || data.user;
         return {
           success: true,
           account: {
-            username: data.account.username,
-            name: data.account.name,
-            role: data.account.role,
-            nisn: data.account.nisn,
+            username: acc.username,
+            name: acc.name,
+            role: acc.role,
+            nisn: acc.nisn,
           },
         };
       } else if (data && data.error) {

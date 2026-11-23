@@ -74,7 +74,7 @@ function addColumnIfNotExists($pdo, $table, $column, $definition) {
         if (!$check) {
             $pdo->exec("ALTER TABLE `$table` ADD COLUMN `$column` $definition");
         }
-    } catch (Exception $e) {}
+    } catch (Throwable $e) {}
 }
 
 // 2. Fungsi Otomatis Buat Tabel Jika Belum Ada (Self-Healing Schema)
@@ -229,7 +229,7 @@ function ensureTablesExist($pdo) {
             $stmt = $pdo->prepare("UPDATE `user_accounts` SET `password` = :pass WHERE `username` = 'admin'");
             $stmt->execute([':pass' => '3bb62e9d75c65289a724a94ec88ff9a0d1ff647652c00300d1c6dd1466bf15c0']);
         }
-    } catch (Exception $e) {}
+    } catch (Throwable $e) {}
 }
 
 // 3. Cryptographic Verification Helper (PBKDF2-SHA256, Salted Legacy SHA-256, Native PHP password_verify)
@@ -330,7 +330,7 @@ function checkRateLimit($pdo, $ip, $identifier, $type = 'login', $maxAccountAtte
         }
 
         return true;
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
         return true;
     }
 }
@@ -339,17 +339,21 @@ function recordFailedAttempt($pdo, $ip, $identifier, $type = 'login') {
     try {
         $stmt = $pdo->prepare("INSERT INTO login_attempts (ip_address, identifier, attempt_type) VALUES (:ip, :id, :type)");
         $stmt->execute([':ip' => $ip, ':id' => $identifier, ':type' => $type]);
-    } catch (Exception $e) {}
+    } catch (Throwable $e) {}
 }
 
 function clearFailedAttempts($pdo, $ip, $identifier, $type = 'login') {
     try {
         $stmt = $pdo->prepare("DELETE FROM login_attempts WHERE identifier = :id AND attempt_type = :type");
         $stmt->execute([':id' => $identifier, ':type' => $type]);
-    } catch (Exception $e) {}
+    } catch (Throwable $e) {}
 }
 
-ensureTablesExist($pdo);
+try {
+    ensureTablesExist($pdo);
+} catch (Throwable $e) {
+    // Non-blocking schema assurance
+}
 
 $action = isset($_GET['action']) ? trim($_GET['action']) : '';
 $rawInput = file_get_contents('php://input');
@@ -554,7 +558,21 @@ try {
                 ':pin' => $pin,
             ]);
 
-            echo json_encode(['success' => true, 'message' => 'User registered successfully']);
+            $registeredPayload = [
+                'username' => $username,
+                'name' => $name,
+                'role' => $role,
+                'email' => $email,
+                'nisn' => $nisn,
+                'auth_provider' => 'credentials',
+                'authenticated' => true,
+            ];
+            echo json_encode([
+                'success' => true, 
+                'message' => 'User registered successfully',
+                'account' => $registeredPayload,
+                'user' => $registeredPayload,
+            ]);
             break;
 
         case 'login':
@@ -568,8 +586,8 @@ try {
 
             $clientIp = getClientIp();
 
-            // Anti-Brute Force Protection: Max 5 gagal dalam 15 menit
-            if (!checkRateLimit($pdo, $clientIp, $identifier, 'login', 5, 15)) {
+            // Anti-Brute Force Protection: Max 5 gagal per akun, 40 per IP dalam 15 menit
+            if (!checkRateLimit($pdo, $clientIp, $identifier, 'login', 5, 40, 15)) {
                 echo json_encode(['success' => false, 'error' => 'Terlalu banyak percobaan login gagal. Mohon tunggu 15 menit demi keamanan akun.']);
                 break;
             }
@@ -594,18 +612,20 @@ try {
 
                 if ($passMatched || $pinMatched) {
                     clearFailedAttempts($pdo, $clientIp, $identifier, 'login');
+                    $userPayload = [
+                        'username' => $user['username'],
+                        'name' => $user['name'],
+                        'role' => $user['role'],
+                        'email' => $user['email'],
+                        'nisn' => $user['nisn'],
+                        'auth_provider' => $user['auth_provider'] ?: 'credentials',
+                        'avatar_url' => $user['avatar_url'] ?: '',
+                        'authenticated' => true,
+                    ];
                     echo json_encode([
                         'success' => true,
-                        'user' => [
-                            'username' => $user['username'],
-                            'name' => $user['name'],
-                            'role' => $user['role'],
-                            'email' => $user['email'],
-                            'nisn' => $user['nisn'],
-                            'auth_provider' => $user['auth_provider'] ?: 'credentials',
-                            'avatar_url' => $user['avatar_url'] ?: '',
-                            'authenticated' => true,
-                        ]
+                        'user' => $userPayload,
+                        'account' => $userPayload,
                     ]);
                 } else {
                     recordFailedAttempt($pdo, $clientIp, $identifier, 'login');
@@ -629,8 +649,8 @@ try {
 
             $clientIp = getClientIp();
 
-            // Anti-Brute Force Protection on 4-digit PIN: Max 5 gagal dalam 15 menit
-            if (!checkRateLimit($pdo, $clientIp, $nisn, 'pin', 5, 15)) {
+            // Anti-Brute Force Protection on 4-digit PIN: Max 5 gagal per NISN, 40 per IP dalam 15 menit
+            if (!checkRateLimit($pdo, $clientIp, $nisn, 'pin', 5, 40, 15)) {
                 echo json_encode(['success' => false, 'error' => 'Terlalu banyak percobaan PIN salah. Akses pemulihan dibatasi 15 menit.']);
                 break;
             }
@@ -644,14 +664,16 @@ try {
                 $isMatch = verifyPinPHP($pin, $storedPin);
                 if ($isMatch) {
                     clearFailedAttempts($pdo, $clientIp, $nisn, 'pin');
+                    $accountPayload = [
+                        'username' => $user['username'],
+                        'name' => $user['name'],
+                        'role' => $user['role'],
+                        'nisn' => $user['nisn'],
+                    ];
                     echo json_encode([
                         'success' => true,
-                        'account' => [
-                            'username' => $user['username'],
-                            'name' => $user['name'],
-                            'role' => $user['role'],
-                            'nisn' => $user['nisn'],
-                        ]
+                        'account' => $accountPayload,
+                        'user' => $accountPayload,
                     ]);
                 } else {
                     recordFailedAttempt($pdo, $clientIp, $nisn, 'pin');
@@ -678,7 +700,7 @@ try {
 
             $clientIp = getClientIp();
 
-            if (!checkRateLimit($pdo, $clientIp, $nisn, 'pin', 5, 15)) {
+            if (!checkRateLimit($pdo, $clientIp, $nisn, 'pin', 5, 40, 15)) {
                 echo json_encode(['success' => false, 'error' => 'Terlalu banyak percobaan PIN salah. Mohon tunggu 15 menit.']);
                 break;
             }
@@ -1314,7 +1336,7 @@ try {
             ]);
             break;
     }
-} catch (Exception $e) {
+} catch (Throwable $e) {
     http_response_code(500);
     echo json_encode([
         'success' => false,
