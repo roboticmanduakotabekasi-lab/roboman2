@@ -1227,7 +1227,8 @@ export default function App() {
 
     setIsSyncing(true);
     try {
-      const supaResult = await fetchAllSupabaseData(session.username);
+      // Always fetch the central club database for all accounts
+      const supaResult = await fetchAllSupabaseData('all');
       
       if (supaResult.success && !supaResult.needsSetup) {
         setIsTablesCreated(true);
@@ -1377,6 +1378,22 @@ export default function App() {
         supa.removeChannel(channel);
       };
     }
+  }, [session, fetchAllData]);
+
+  // Silent auto-refresh on window focus & every 60 seconds so all accounts automatically receive central database updates
+  useEffect(() => {
+    if (!session || session.isDemo) return;
+    const onWindowFocus = () => {
+      fetchAllData();
+    };
+    window.addEventListener('focus', onWindowFocus);
+    const periodicTimer = setInterval(() => {
+      fetchAllData();
+    }, 60000);
+    return () => {
+      window.removeEventListener('focus', onWindowFocus);
+      clearInterval(periodicTimer);
+    };
   }, [session, fetchAllData]);
 
   // Pre-load public roster & announcements on first app mount so Activation & Landing page work instantly on new devices
