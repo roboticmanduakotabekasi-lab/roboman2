@@ -80,12 +80,35 @@ export const StudentVerificationModal: React.FC<StudentVerificationModalProps> =
       return;
     }
 
-    // Match against club members roster
-    const matched = members.find((m) => {
+    // Match against club members roster (Check local cache first, then directly query hosting database)
+    let matched = members.find((m) => {
       const mNisn = (m.nisn || '').replace(/[^0-9]/g, '').trim();
       const mId = String(m.id_member || '').replace(/[^0-9]/g, '').trim();
       return mNisn === cleanNisn || mId === cleanNisn;
     });
+
+    if (!matched) {
+      // Query central hosting database via api.php
+      try {
+        const res = await fetch(`./api.php?action=lookup_member&nisn=${encodeURIComponent(cleanNisn)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.success && data.member) {
+            matched = {
+              id_member: data.member.id_member || cleanNisn,
+              fullName: data.member.fullName || data.member.full_name || 'Active Member',
+              nisn: data.member.nisn || cleanNisn,
+              grade: data.member.grade || 'X',
+              classRoom: data.member.classRoom || data.member.class_room || 'A',
+              status: data.member.status || 'aktif',
+              role: data.member.role || 'member',
+              jabatan: data.member.jabatan || 'member',
+              birthDate: data.member.birthDate || data.member.birth_date || '',
+            } as Member;
+          }
+        }
+      } catch {}
+    }
 
     if (!matched) {
       setErrorMsg(`NISN "${cleanNisn}" is not registered in the official MAN 2 Robotics club roster. Please contact your faculty advisor.`);
