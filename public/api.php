@@ -26,11 +26,16 @@ $db_name = getenv('DB_NAME') ?: 'robotakman2kotbek';
 $db_user = getenv('DB_USER') ?: 'robotakman2kotbek';
 $db_pass = getenv('DB_PASSWORD') ?: 'robodih';
 
-// Kandidat koneksi (prioritas: robotakman2kotbek, prefix cPanel mankota1_, atau mankota1_robotik)
+// Kandidat koneksi database MySQL cPanel (Mendukung semua varian nama & kredensial)
 $candidates = [
     ['name' => $db_name, 'user' => $db_user, 'pass' => $db_pass],
     ['name' => 'mankota1_' . $db_name, 'user' => 'mankota1_' . $db_user, 'pass' => $db_pass],
     ['name' => 'mankota1_robotik', 'user' => 'mankota1_robotik', 'pass' => '3Bh4-IR$4eh%aHyW'],
+    ['name' => 'mankota1_robotik', 'user' => 'mankota1_robotik', 'pass' => 'robodih'],
+    ['name' => 'mankota1_' . $db_name, 'user' => 'mankota1_' . $db_user, 'pass' => '3Bh4-IR$4eh%aHyW'],
+    ['name' => 'mankota1_robotik', 'user' => 'mankota1_' . $db_user, 'pass' => $db_pass],
+    ['name' => 'robotakman2kotbek', 'user' => 'robotakman2kotbek', 'pass' => 'robodih'],
+    ['name' => 'robotik', 'user' => 'robotik', 'pass' => '3Bh4-IR$4eh%aHyW'],
 ];
 
 $pdo = null;
@@ -56,9 +61,19 @@ if (!$pdo) {
     echo json_encode([
         'success' => false,
         'error' => 'Koneksi MySQL Gagal: ' . $lastError,
-        'tip' => 'Pastikan user ' . $db_user . ' dan database ' . $db_name . ' sudah dibuat di cPanel MySQL Databases dan diberi ALL PRIVILEGES.'
+        'tip' => 'Pastikan database dan user cPanel MySQL sudah dibuat dan diberi ALL PRIVILEGES.'
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     exit;
+}
+
+// Helper migrasi kolom otomatis (Self-Healing Schema)
+function addColumnIfNotExists($pdo, $table, $column, $definition) {
+    try {
+        $check = $pdo->query("SHOW COLUMNS FROM `$table` LIKE '$column'")->fetch();
+        if (!$check) {
+            $pdo->exec("ALTER TABLE `$table` ADD COLUMN `$column` $definition");
+        }
+    } catch (Exception $e) {}
 }
 
 // 2. Fungsi Otomatis Buat Tabel Jika Belum Ada (Self-Healing Schema)
@@ -75,7 +90,8 @@ function ensureTablesExist($pdo) {
             `auth_provider` VARCHAR(50) DEFAULT 'credentials',
             `avatar_url` TEXT,
             `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            KEY `idx_user_nisn` (`nisn`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
         CREATE TABLE IF NOT EXISTS `members` (
@@ -98,7 +114,8 @@ function ensureTablesExist($pdo) {
             `birth_date` VARCHAR(30) DEFAULT '',
             `birth_place` VARCHAR(100) DEFAULT '',
             `is_verified` TINYINT(1) DEFAULT 0,
-            `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            KEY `idx_member_nisn` (`nisn`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
         CREATE TABLE IF NOT EXISTS `attendance` (
@@ -179,6 +196,17 @@ function ensureTablesExist($pdo) {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     ");
 
+    // Self-healing columns check
+    addColumnIfNotExists($pdo, 'user_accounts', 'recovery_pin', 'VARCHAR(255) DEFAULT ""');
+    addColumnIfNotExists($pdo, 'user_accounts', 'auth_provider', 'VARCHAR(50) DEFAULT "credentials"');
+    addColumnIfNotExists($pdo, 'user_accounts', 'avatar_url', 'TEXT');
+    addColumnIfNotExists($pdo, 'user_accounts', 'nisn', 'VARCHAR(30) DEFAULT ""');
+    addColumnIfNotExists($pdo, 'members', 'nisn', 'VARCHAR(30) DEFAULT ""');
+    addColumnIfNotExists($pdo, 'members', 'is_verified', 'TINYINT(1) DEFAULT 0');
+    addColumnIfNotExists($pdo, 'attendance', 'notes', 'TEXT');
+    addColumnIfNotExists($pdo, 'announcements', 'author_name', 'VARCHAR(150) DEFAULT "Pengurus Ekskul"');
+    addColumnIfNotExists($pdo, 'materials_assignments', 'attachment_url', 'TEXT');
+
     // Auto-seed or update default admin in user_accounts table
     try {
         $adminCount = $pdo->query("SELECT COUNT(*) FROM `user_accounts` WHERE `username` = 'admin'")->fetchColumn();
@@ -187,13 +215,67 @@ function ensureTablesExist($pdo) {
                 VALUES ('admin', :pass, 'Admin Robotic MAN 2 Kota Bekasi', 'admin', 'roboticman2kotabekasi@gmail.com', 'credentials')");
             $stmt->execute([':pass' => '3bb62e9d75c65289a724a94ec88ff9a0d1ff647652c00300d1c6dd1466bf15c0']);
         } else {
-            // Ensure admin password matches admin123
             $stmt = $pdo->prepare("UPDATE `user_accounts` SET `password` = :pass WHERE `username` = 'admin'");
             $stmt->execute([':pass' => '3bb62e9d75c65289a724a94ec88ff9a0d1ff647652c00300d1c6dd1466bf15c0']);
         }
-    } catch (Exception $e) {
-        // Silent ignore if already exists or table busy
+    } catch (Exception $e) {}
+}
+
+// 3. Cryptographic Verification Helper (PBKDF2-SHA256, Salted Legacy SHA-256, Native PHP password_verify)
+function verifyPasswordHashPHP($attempt, $stored) {
+    if (!$attempt || !$stored) return false;
+    $attempt = (string)$attempt;
+    $stored = (string)$stored;
+
+    // Direct match (plaintext fallback)
+    if ($attempt === $stored) return true;
+
+    // 1. PBKDF2 v2 (pbkdf2_v2$SALT$HASH) - 100,000 rounds
+    if (strpos($stored, 'pbkdf2_v2$') === 0) {
+        $parts = explode('$', $stored);
+        if (count($parts) === 3 && !empty($parts[1]) && !empty($parts[2])) {
+            $saltBin = @hex2bin($parts[1]);
+            if ($saltBin !== false) {
+                $computed = hash_pbkdf2('sha256', $attempt, $saltBin, 100000);
+                if (hash_equals($parts[2], $computed)) return true;
+            }
+        }
     }
+
+    // 2. PBKDF2 v1 (pbkdf2$HASH) - legacy fixed salt
+    if (strpos($stored, 'pbkdf2$') === 0) {
+        $salt = 'man2_robotics_auth_salt_2026_';
+        $target = substr($stored, 7);
+        $computed = hash_pbkdf2('sha256', $attempt, $salt, 100000);
+        if (hash_equals($target, $computed)) return true;
+    }
+
+    // 3. Salted SHA-256 legacy (man2_robotics_auth_salt_2026_ + password)
+    $legacySalt = 'man2_robotics_auth_salt_2026_';
+    $legacySha = hash('sha256', $legacySalt . $attempt);
+    if (hash_equals(strtolower($stored), strtolower($legacySha))) return true;
+
+    // 4. Raw SHA-256
+    $rawSha = hash('sha256', $attempt);
+    if (hash_equals(strtolower($stored), strtolower($rawSha)) || hash_equals(strtolower($stored), 'sha256:' . strtolower($rawSha))) {
+        return true;
+    }
+
+    // 5. Native PHP password_verify (bcrypt, argon2)
+    if (strlen($stored) >= 60 && @password_verify($attempt, $stored)) {
+        return true;
+    }
+
+    return false;
+}
+
+// PIN Verification Helper
+function verifyPinPHP($attempt, $stored) {
+    if (!$attempt || !$stored) return false;
+    $cleanAttempt = preg_replace('/[^0-9]/', '', (string)$attempt);
+    $cleanStored = preg_replace('/[^0-9]/', '', (string)$stored);
+    if ($cleanAttempt && $cleanAttempt === $cleanStored) return true;
+    return verifyPasswordHashPHP($cleanAttempt, $stored);
 }
 
 ensureTablesExist($pdo);
@@ -250,8 +332,13 @@ try {
                 break;
             }
             $cleanNisn = preg_replace('/[^0-9]/', '', $nisn);
-            $stmt = $pdo->prepare("SELECT * FROM members WHERE REPLACE(nisn, ' ', '') = :nisn OR REPLACE(id_member, ' ', '') = :nisn LIMIT 1");
-            $stmt->execute([':nisn' => $cleanNisn]);
+            $stmt = $pdo->prepare("SELECT * FROM members 
+                WHERE REPLACE(nisn, ' ', '') = :nisn 
+                   OR REPLACE(id_member, ' ', '') = :nisn 
+                   OR nisn = :raw
+                   OR id_member = :raw
+                LIMIT 1");
+            $stmt->execute([':nisn' => $cleanNisn, ':raw' => trim($nisn)]);
             $found = $stmt->fetch();
             if ($found) {
                 echo json_encode([
@@ -274,6 +361,8 @@ try {
             break;
 
         case 'register_user':
+        case 'register-member':
+        case 'auth/register-member':
             $username = trim($input['username'] ?? '');
             $password = trim($input['password'] ?? '');
             $name = trim($input['name'] ?? $username);
@@ -312,6 +401,7 @@ try {
             break;
 
         case 'login':
+        case 'auth/login':
             $identifier = trim($input['identifier'] ?? '');
             $password = trim($input['password'] ?? '');
             if (!$identifier || !$password) {
@@ -332,28 +422,9 @@ try {
             if ($user) {
                 $storedPass = (string)$user['password'];
                 $storedPin = (string)($user['recovery_pin'] ?? '');
-                $sha256 = hash('sha256', $password);
-                $sha256Prefixed = 'sha256:' . $sha256;
 
-                // Robust server-side verification: sha256, bcrypt/password_verify, or raw match
-                $passMatched = (
-                    $password === $storedPass ||
-                    $sha256 === $storedPass ||
-                    $sha256Prefixed === $storedPass ||
-                    (strlen($storedPass) >= 60 && password_verify($password, $storedPass))
-                );
-
-                $pinMatched = false;
-                if ($storedPin !== '') {
-                    $pinSha256 = hash('sha256', $password);
-                    $pinSha256Prefixed = 'sha256:' . $pinSha256;
-                    $pinMatched = (
-                        $password === $storedPin ||
-                        $pinSha256 === $storedPin ||
-                        $pinSha256Prefixed === $storedPin ||
-                        (strlen($storedPin) >= 60 && password_verify($password, $storedPin))
-                    );
-                }
+                $passMatched = verifyPasswordHashPHP($password, $storedPass);
+                $pinMatched = verifyPinPHP($password, $storedPin);
 
                 if ($passMatched || $pinMatched) {
                     echo json_encode([
@@ -378,6 +449,8 @@ try {
             break;
 
         case 'verify_pin':
+        case 'verify-pin':
+        case 'auth/verify-pin':
             $nisn = preg_replace('/[^0-9]/', '', $input['nisn'] ?? ($_GET['nisn'] ?? ''));
             $pin = trim($input['pin'] ?? '');
             if (!$nisn || !$pin) {
@@ -390,13 +463,7 @@ try {
             $user = $stmt->fetch();
             if ($user) {
                 $storedPin = (string)($user['recovery_pin'] ?? '');
-                $pinSha256 = hash('sha256', $pin);
-                $isMatch = (
-                    $pin === $storedPin ||
-                    $pinSha256 === $storedPin ||
-                    ('sha256:' . $pinSha256) === $storedPin ||
-                    (strlen($storedPin) >= 60 && password_verify($pin, $storedPin))
-                );
+                $isMatch = verifyPinPHP($pin, $storedPin);
                 if ($isMatch) {
                     echo json_encode([
                         'success' => true,
@@ -416,6 +483,8 @@ try {
             break;
 
         case 'reset_password_with_pin':
+        case 'reset-password-with-pin':
+        case 'auth/reset-password-with-pin':
             $nisn = preg_replace('/[^0-9]/', '', $input['nisn'] ?? '');
             $pin = trim($input['pin'] ?? '');
             $newPassword = trim($input['newPassword'] ?? ($input['new_password'] ?? ''));
@@ -433,15 +502,12 @@ try {
                     break;
                 }
                 $storedPin = (string)($user['recovery_pin'] ?? '');
-                $pinSha256 = hash('sha256', $pin);
-                $isMatch = (
-                    $pin === $storedPin ||
-                    $pinSha256 === $storedPin ||
-                    ('sha256:' . $pinSha256) === $storedPin ||
-                    (strlen($storedPin) >= 60 && password_verify($pin, $storedPin))
-                );
+                $isMatch = verifyPinPHP($pin, $storedPin);
                 if ($isMatch) {
-                    $hashedPass = hash('sha256', $newPassword);
+                    // If not already a pbkdf2 or hash string, store sha256 or as provided
+                    $hashedPass = (strpos($newPassword, 'pbkdf2') === 0 || strlen($newPassword) === 64) 
+                        ? $newPassword 
+                        : hash('sha256', $newPassword);
                     $updateStmt = $pdo->prepare("UPDATE user_accounts SET password = :p WHERE username = :u");
                     $updateStmt->execute([':p' => $hashedPass, ':u' => $user['username']]);
                     echo json_encode(['success' => true, 'message' => 'Kata sandi berhasil diperbarui!']);
@@ -563,6 +629,7 @@ try {
             $attendance = $pdo->query("SELECT * FROM attendance ORDER BY tanggal DESC")->fetchAll();
             $cash = $pdo->query("SELECT * FROM cash_transactions ORDER BY tanggal DESC")->fetchAll();
             $announcements = $pdo->query("SELECT * FROM announcements ORDER BY created_at DESC")->fetchAll();
+            $assignments = $pdo->query("SELECT * FROM materials_assignments ORDER BY created_at DESC")->fetchAll();
 
             // Format to match React types
             $formattedMembers = array_map(function($m) {
@@ -618,6 +685,7 @@ try {
                     'attendance' => $formattedAttendance,
                     'cash' => $formattedCash,
                     'announcements' => $announcements,
+                    'assignments' => $assignments,
                 ]
             ]);
             break;
