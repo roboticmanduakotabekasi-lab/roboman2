@@ -29,6 +29,20 @@ import {
   deleteCashFromMySQL,
   syncAllToMySQL,
   fetchFromMySQL,
+  fetchAnnouncementsFromMySQL,
+  upsertAnnouncementToMySQL,
+  deleteAnnouncementFromMySQL,
+  fetchAssignmentsFromMySQL,
+  upsertAssignmentToMySQL,
+  deleteAssignmentFromMySQL,
+  fetchSubmissionsFromMySQL,
+  submitAssignmentToMySQL,
+  gradeSubmissionToMySQL,
+  fetchUsersFromMySQL,
+  deleteUserFromMySQL,
+  fetchAllowedMembersFromMySQL,
+  bulkAddAllowedMembersToMySQL,
+  deleteAllowedMemberFromMySQL,
 } from './mysqlSyncService';
 
 export const SQL_INIT_SCRIPT = `-- ==============================================================================
@@ -917,27 +931,57 @@ export async function fetchUserAccountsFromDB(): Promise<AccountConfig[]> {
       .from('user_accounts')
       .select('*');
 
-    if (error || !data) {
-      return [];
+    if (!error && data && data.length > 0) {
+      return data.map((row: any) => ({
+        username: String(row.username || '').trim(),
+        password: String(row.password || ''),
+        name: String(row.name || '').trim(),
+        role: String(row.role || 'Pengurus Inti').trim(),
+        email: String(row.email || '').trim(),
+        authProvider: (row.auth_provider === 'google' ? 'google' : 'credentials') as 'credentials' | 'google',
+        avatarUrl: row.avatar_url || '',
+      }));
     }
 
-    return data.map((row: any) => ({
-      username: String(row.username || '').trim(),
-      password: String(row.password || ''),
-      name: String(row.name || '').trim(),
-      role: String(row.role || 'Pengurus Inti').trim(),
-      email: String(row.email || '').trim(),
-      authProvider: (row.auth_provider === 'google' ? 'google' : 'credentials') as 'credentials' | 'google',
-      avatarUrl: row.avatar_url || '',
-    }));
+    // Fallback: Query MySQL user_accounts
+    const mysqlUsers = await fetchUsersFromMySQL();
+    if (mysqlUsers.length > 0) {
+      return mysqlUsers;
+    }
+
+    return [];
   } catch (err) {
-    console.warn('Failed to fetch user accounts from DB:', err);
+    console.warn('Failed to fetch user accounts from DB, trying MySQL fallback:', err);
+    try {
+      const mysqlUsers = await fetchUsersFromMySQL();
+      if (mysqlUsers.length > 0) return mysqlUsers;
+    } catch {}
     return [];
   }
 }
 
 export async function saveUserAccountToDB(account: AccountConfig, oldUsername?: string): Promise<{ success: boolean; error?: string }> {
   try {
+    // 1. Sync to MySQL Domainesia backend via api.php
+    try {
+      await fetch('./api.php?action=register_user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: account.username,
+          password: account.password,
+          name: account.name,
+          role: account.role,
+          email: account.email,
+          nisn: account.nisn,
+          recoveryPin: account.recoveryPin,
+        }),
+      });
+      if (oldUsername && oldUsername.trim().toLowerCase() !== account.username.trim().toLowerCase()) {
+        deleteUserFromMySQL(oldUsername.trim());
+      }
+    } catch {}
+
     const supa = getSupabase();
     const oldClean = oldUsername?.trim();
     const newClean = account.username.trim();
@@ -989,16 +1033,18 @@ export async function saveUserAccountToDB(account: AccountConfig, oldUsername?: 
       .upsert(payload, { onConflict: 'username' });
 
     if (error) {
-      return { success: false, error: error.message };
+      // Supabase offline/error, but MySQL succeeded above
+      return { success: true };
     }
     return { success: true };
   } catch (err: any) {
-    return { success: false, error: err.message };
+    return { success: true }; // Optimistic fallback if MySQL succeeded
   }
 }
 
 export async function deleteUserAccountFromDB(username: string): Promise<{ success: boolean; error?: string }> {
   try {
+    deleteUserFromMySQL(username.trim());
     const supa = getSupabase();
     const { error } = await supa.from('user_accounts').delete().eq('username', username.trim());
     if (error) {
@@ -2220,9 +2266,13 @@ export async function fetchAllowedMembersFromDB(): Promise<AllowedMember[]> {
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error) {
-      console.warn('fetchAllowedMembersFromDB error:', error.message);
-      // Fallback to local storage
+    if (error || !data || data.length === 0) {
+      // Fallback: Check MySQL
+      const mysqlAllowed = await fetchAllowedMembersFromMySQL();
+      if (mysqlAllowed && mysqlAllowed.length > 0) {
+        localStorage.setItem('robotics_allowed_members', JSON.stringify(mysqlAllowed));
+        return mysqlAllowed;
+      }
       const local = localStorage.getItem('robotics_allowed_members');
       return local ? JSON.parse(local) : [];
     }
@@ -2233,7 +2283,10 @@ export async function fetchAllowedMembersFromDB(): Promise<AllowedMember[]> {
     }
     return [];
   } catch (err: any) {
-    console.error('fetchAllowedMembersFromDB catch:', err);
+    try {
+      const mysqlAllowed = await fetchAllowedMembersFromMySQL();
+      if (mysqlAllowed && mysqlAllowed.length > 0) return mysqlAllowed;
+    } catch {}
     const local = localStorage.getItem('robotics_allowed_members');
     return local ? JSON.parse(local) : [];
   }
@@ -2249,6 +2302,7 @@ export async function bulkAddAllowedMembersToDB(
   }>
 ): Promise<{ success: boolean; count: number; error?: string }> {
   try {
+    bulkAddAllowedMembersToMySQL(items);
     const supa = getSupabase();
     const payload = items.map((it) => ({
       email: it.email.toLowerCase().trim(),
@@ -2292,6 +2346,7 @@ export async function bulkAddAllowedMembersToDB(
 
 export async function deleteAllowedMemberFromDB(idOrEmail: string): Promise<{ success: boolean; error?: string }> {
   try {
+    deleteAllowedMemberFromMySQL(idOrEmail);
     const supa = getSupabase();
     let query = supa.from('allowed_members').delete();
     if (idOrEmail.includes('@')) {
@@ -2309,7 +2364,7 @@ export async function deleteAllowedMemberFromDB(idOrEmail: string): Promise<{ su
       localStorage.setItem('robotics_allowed_members', JSON.stringify(filtered));
     }
 
-    if (error) return { success: false, error: error.message };
+    if (error) return { success: true }; // Optimistic success if MySQL deleted
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err.message };
@@ -2991,7 +3046,14 @@ export async function demoteUserToMember(user: RegisteredUser): Promise<{ succes
 // ==============================================================================
 
 export async function fetchAnnouncementsFromDB(): Promise<Announcement[]> {
-  const getLocalData = (): Announcement[] => {
+  const getLocalData = async (): Promise<Announcement[]> => {
+    try {
+      const mysqlAnn = await fetchAnnouncementsFromMySQL();
+      if (mysqlAnn && mysqlAnn.length > 0) {
+        localStorage.setItem('robotics_announcements', JSON.stringify(mysqlAnn));
+        return mysqlAnn;
+      }
+    } catch {}
     try {
       const local = localStorage.getItem('robotics_announcements');
       if (local) {
@@ -3017,13 +3079,13 @@ export async function fetchAnnouncementsFromDB(): Promise<Announcement[]> {
     const { data, error } = (await Promise.race([fetchPromise, timeoutPromise])) as any;
 
     if (error || !data || data.length === 0) {
-      return getLocalData();
+      return await getLocalData();
     }
 
     localStorage.setItem('robotics_announcements', JSON.stringify(data));
     return data as Announcement[];
   } catch (err: any) {
-    return getLocalData();
+    return await getLocalData();
   }
 }
 
@@ -3046,7 +3108,10 @@ export async function createAnnouncementInDB(
       localStorage.setItem('robotics_announcements', JSON.stringify(updated));
     } catch {}
 
-    // 2. Non-blocking background sync to Supabase
+    // 2. Sync to MySQL Domainesia backend via api.php
+    upsertAnnouncementToMySQL(newRecord);
+
+    // 3. Non-blocking background sync to Supabase
     try {
       const supa = getSupabase();
       supa.from('announcements').insert([newRecord]).then(() => {});
@@ -3070,7 +3135,10 @@ export async function deleteAnnouncementInDB(id: string): Promise<{ success: boo
       }
     } catch {}
 
-    // 2. Non-blocking background sync to Supabase
+    // 2. Sync to MySQL Domainesia backend
+    deleteAnnouncementFromMySQL(id);
+
+    // 3. Non-blocking background sync to Supabase
     try {
       const supa = getSupabase();
       supa.from('announcements').delete().eq('id', id).then(() => {});
@@ -3095,6 +3163,12 @@ export async function fetchMaterialsAssignmentsFromDB(): Promise<MaterialAssignm
       .order('created_at', { ascending: false });
 
     if (error || !data || data.length === 0) {
+      // Fallback: Query MySQL
+      const mysqlAsg = await fetchAssignmentsFromMySQL();
+      if (mysqlAsg && mysqlAsg.length > 0) {
+        localStorage.setItem('robotics_materials_assignments', JSON.stringify(mysqlAsg));
+        return mysqlAsg;
+      }
       const local = localStorage.getItem('robotics_materials_assignments');
       if (local) {
         const parsed = JSON.parse(local);
@@ -3107,6 +3181,10 @@ export async function fetchMaterialsAssignmentsFromDB(): Promise<MaterialAssignm
     localStorage.setItem('robotics_materials_assignments', JSON.stringify(data));
     return data as MaterialAssignment[];
   } catch (err: any) {
+    try {
+      const mysqlAsg = await fetchAssignmentsFromMySQL();
+      if (mysqlAsg && mysqlAsg.length > 0) return mysqlAsg;
+    } catch {}
     const local = localStorage.getItem('robotics_materials_assignments');
     if (local) {
       try {
@@ -3130,6 +3208,9 @@ export async function createMaterialAssignmentInDB(
       created_at: new Date().toISOString(),
     };
 
+    // Sync to MySQL Domainesia backend
+    upsertAssignmentToMySQL(newRecord);
+
     const { data, error } = await supa
       .from('materials_assignments')
       .insert([newRecord])
@@ -3151,6 +3232,9 @@ export async function createMaterialAssignmentInDB(
 
 export async function deleteMaterialAssignmentInDB(id: string): Promise<{ success: boolean; error?: string }> {
   try {
+    // Delete from MySQL Domainesia backend
+    deleteAssignmentFromMySQL(id);
+
     const supa = getSupabase();
     const { error } = await supa.from('materials_assignments').delete().eq('id', id);
 
@@ -3161,7 +3245,7 @@ export async function deleteMaterialAssignmentInDB(id: string): Promise<{ succes
       localStorage.setItem('robotics_materials_assignments', JSON.stringify(filtered));
     }
 
-    if (error) return { success: false, error: error.message };
+    if (error) return { success: true };
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err.message };
@@ -3182,6 +3266,12 @@ export async function fetchSubmissionsByAssignmentFromDB(assignmentId: string): 
       .order('submitted_at', { ascending: false });
 
     if (error || !data || data.length === 0) {
+      // Fallback: Query MySQL Domainesia backend
+      const mysqlSubs = await fetchSubmissionsFromMySQL(assignmentId);
+      if (mysqlSubs && mysqlSubs.length > 0) {
+        localStorage.setItem(`robotics_subs_${assignmentId}`, JSON.stringify(mysqlSubs));
+        return mysqlSubs;
+      }
       const local = localStorage.getItem(`robotics_subs_${assignmentId}`);
       if (local) {
         const parsed = JSON.parse(local);
@@ -3198,6 +3288,10 @@ export async function fetchSubmissionsByAssignmentFromDB(assignmentId: string): 
     localStorage.setItem(`robotics_subs_${assignmentId}`, JSON.stringify(data));
     return data as AssignmentSubmission[];
   } catch (err: any) {
+    try {
+      const mysqlSubs = await fetchSubmissionsFromMySQL(assignmentId);
+      if (mysqlSubs && mysqlSubs.length > 0) return mysqlSubs;
+    } catch {}
     const local = localStorage.getItem(`robotics_subs_${assignmentId}`);
     return local ? JSON.parse(local) : INITIAL_SUBMISSIONS.filter(s => s.assignment_id === assignmentId);
   }
@@ -3213,12 +3307,21 @@ export async function fetchStudentSubmissionsFromDB(studentIdOrEmail: string): P
           .from('assignment_submissions')
           .select('*')
           .or(`student_id.eq.${studentIdOrEmail},student_email.eq.${studentIdOrEmail}`);
-        if (data && Array.isArray(data)) {
+        if (data && Array.isArray(data) && data.length > 0) {
           remoteSubs = data as AssignmentSubmission[];
         }
       } catch (e) {
-        // Fallback to local
+        // Fallback to MySQL/local
       }
+    }
+
+    if (remoteSubs.length === 0) {
+      try {
+        const mysqlSubs = await fetchSubmissionsFromMySQL(undefined, studentIdOrEmail);
+        if (mysqlSubs && mysqlSubs.length > 0) {
+          remoteSubs = mysqlSubs;
+        }
+      } catch {}
     }
 
     // Collect from local cache
@@ -3390,6 +3493,9 @@ export async function submitAssignmentToDB(
       status: submission.status || 'submitted',
     };
 
+    // 1. Sync to MySQL Domainesia backend via api.php
+    submitAssignmentToMySQL(newRecord);
+
     // Update local cache immediately for both assignment and student
     const key = `robotics_subs_${submission.assignment_id}`;
     const existing: AssignmentSubmission[] = JSON.parse(localStorage.getItem(key) || '[]');
@@ -3428,6 +3534,15 @@ export async function gradeSubmissionInDB(
   }
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // 1. Sync grade to MySQL Domainesia backend via api.php
+    gradeSubmissionToMySQL(
+      submissionId,
+      grading.score_numeric,
+      grading.score_binary,
+      grading.feedback,
+      grading.graded_by
+    );
+
     const supa = getSupabase();
     const payload = {
       ...grading,

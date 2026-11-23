@@ -135,6 +135,48 @@ function ensureTablesExist($pdo) {
             `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+        CREATE TABLE IF NOT EXISTS `materials_assignments` (
+            `id` VARCHAR(100) NOT NULL PRIMARY KEY,
+            `title` VARCHAR(200) NOT NULL,
+            `description` TEXT NOT NULL,
+            `type` VARCHAR(20) NOT NULL DEFAULT 'material',
+            `deadline` DATETIME NULL DEFAULT NULL,
+            `attachment_url` TEXT,
+            `grading_type` VARCHAR(20) DEFAULT 'numeric',
+            `max_score` DECIMAL(5,2) DEFAULT 100.00,
+            `created_by` VARCHAR(100) DEFAULT '',
+            `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+        CREATE TABLE IF NOT EXISTS `assignment_submissions` (
+            `id` VARCHAR(100) NOT NULL PRIMARY KEY,
+            `assignment_id` VARCHAR(100) NOT NULL,
+            `student_id` VARCHAR(100) NOT NULL,
+            `student_email` VARCHAR(150) NOT NULL,
+            `student_name` VARCHAR(150) NOT NULL,
+            `submission_text` TEXT,
+            `submission_link` TEXT,
+            `status` VARCHAR(30) DEFAULT 'submitted',
+            `score_numeric` DECIMAL(5,2) NULL,
+            `score_binary` VARCHAR(30) NULL,
+            `feedback` TEXT,
+            `submitted_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            `graded_at` TIMESTAMP NULL DEFAULT NULL,
+            `graded_by` VARCHAR(100) DEFAULT '',
+            UNIQUE KEY `uq_assignment_student` (`assignment_id`, `student_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+        CREATE TABLE IF NOT EXISTS `allowed_members` (
+            `id` VARCHAR(100) NOT NULL PRIMARY KEY,
+            `email` VARCHAR(150) NOT NULL UNIQUE,
+            `nama_lengkap` VARCHAR(150) NOT NULL,
+            `nis_atau_kelas` VARCHAR(50) DEFAULT '',
+            `jabatan_ekskul` VARCHAR(50) DEFAULT 'member',
+            `status_akun` VARCHAR(30) DEFAULT 'unclaimed',
+            `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            `claimed_at` TIMESTAMP NULL DEFAULT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     ");
 
     // Auto-seed or update default admin in user_accounts table
@@ -591,6 +633,267 @@ try {
                 ':ket' => $c['keterangan'] ?? '',
             ]);
             echo json_encode(['success' => true, 'id' => $id]);
+            break;
+
+        // --- FULL BACKUP CRUD FOR ANNOUNCEMENTS ---
+        case 'fetch_announcements':
+            $ann = $pdo->query("SELECT * FROM announcements ORDER BY created_at DESC")->fetchAll();
+            echo json_encode(['success' => true, 'announcements' => $ann]);
+            break;
+
+        case 'upsert_announcement':
+            $id = $input['id'] ?? uniqid('ann_');
+            $title = $input['title'] ?? 'Pengumuman Baru';
+            $content = $input['content'] ?? '';
+            $eventDate = !empty($input['event_date']) ? date('Y-m-d H:i:s', strtotime($input['event_date'])) : null;
+            $location = $input['location'] ?? 'Workshop Robotika roboman2';
+            $author = $input['author_name'] ?? ($input['author'] ?? 'Pengurus Ekskul');
+
+            $stmt = $pdo->prepare("INSERT INTO announcements (id, title, content, event_date, location, author_name)
+                VALUES (:id, :title, :content, :event_date, :location, :author)
+                ON DUPLICATE KEY UPDATE 
+                    title = VALUES(title), content = VALUES(content), event_date = VALUES(event_date),
+                    location = VALUES(location), author_name = VALUES(author_name)");
+            $stmt->execute([
+                ':id' => $id,
+                ':title' => $title,
+                ':content' => $content,
+                ':event_date' => $eventDate,
+                ':location' => $location,
+                ':author' => $author,
+            ]);
+            echo json_encode(['success' => true, 'id' => $id]);
+            break;
+
+        case 'delete_announcement':
+            $id = $input['id'] ?? ($_GET['id'] ?? '');
+            if ($id) {
+                $stmt = $pdo->prepare("DELETE FROM announcements WHERE id = :id");
+                $stmt->execute([':id' => $id]);
+                echo json_encode(['success' => true]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'Missing announcement id']);
+            }
+            break;
+
+        // --- FULL BACKUP CRUD FOR ASSIGNMENTS & MATERIALS ---
+        case 'fetch_assignments':
+            $assignments = $pdo->query("SELECT * FROM materials_assignments ORDER BY created_at DESC")->fetchAll();
+            $formatted = array_map(function($a) {
+                return [
+                    'id' => $a['id'],
+                    'title' => $a['title'],
+                    'description' => $a['description'],
+                    'type' => $a['type'],
+                    'deadline' => $a['deadline'],
+                    'attachment_url' => $a['attachment_url'],
+                    'grading_type' => $a['grading_type'],
+                    'max_score' => (float)$a['max_score'],
+                    'created_by' => $a['created_by'],
+                    'created_at' => $a['created_at'],
+                ];
+            }, $assignments);
+            echo json_encode(['success' => true, 'assignments' => $formatted]);
+            break;
+
+        case 'upsert_assignment':
+            $id = $input['id'] ?? uniqid('asg_');
+            $title = $input['title'] ?? 'Materi / Tugas Baru';
+            $desc = $input['description'] ?? '';
+            $type = $input['type'] ?? 'material';
+            $deadline = !empty($input['deadline']) ? date('Y-m-d H:i:s', strtotime($input['deadline'])) : null;
+            $attachmentUrl = $input['attachment_url'] ?? '';
+            $gradingType = $input['grading_type'] ?? 'numeric';
+            $maxScore = (float)($input['max_score'] ?? 100);
+            $createdBy = $input['created_by'] ?? '';
+
+            $stmt = $pdo->prepare("INSERT INTO materials_assignments 
+                (id, title, description, type, deadline, attachment_url, grading_type, max_score, created_by)
+                VALUES (:id, :title, :desc, :type, :deadline, :attachment_url, :grading_type, :max_score, :created_by)
+                ON DUPLICATE KEY UPDATE 
+                    title = VALUES(title), description = VALUES(description), type = VALUES(type),
+                    deadline = VALUES(deadline), attachment_url = VALUES(attachment_url),
+                    grading_type = VALUES(grading_type), max_score = VALUES(max_score)");
+            $stmt->execute([
+                ':id' => $id,
+                ':title' => $title,
+                ':desc' => $desc,
+                ':type' => $type,
+                ':deadline' => $deadline,
+                ':attachment_url' => $attachmentUrl,
+                ':grading_type' => $gradingType,
+                ':max_score' => $maxScore,
+                ':created_by' => $createdBy,
+            ]);
+            echo json_encode(['success' => true, 'id' => $id]);
+            break;
+
+        case 'delete_assignment':
+            $id = $input['id'] ?? ($_GET['id'] ?? '');
+            if ($id) {
+                $pdo->prepare("DELETE FROM assignment_submissions WHERE assignment_id = :id")->execute([':id' => $id]);
+                $stmt = $pdo->prepare("DELETE FROM materials_assignments WHERE id = :id");
+                $stmt->execute([':id' => $id]);
+                echo json_encode(['success' => true]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'Missing assignment id']);
+            }
+            break;
+
+        // --- FULL BACKUP CRUD FOR SUBMISSIONS ---
+        case 'fetch_submissions':
+            $assignmentId = $input['assignment_id'] ?? ($_GET['assignment_id'] ?? '');
+            $studentId = $input['student_id'] ?? ($_GET['student_id'] ?? '');
+            if ($assignmentId) {
+                $stmt = $pdo->prepare("SELECT * FROM assignment_submissions WHERE assignment_id = :id ORDER BY submitted_at DESC");
+                $stmt->execute([':id' => $assignmentId]);
+            } elseif ($studentId) {
+                $stmt = $pdo->prepare("SELECT * FROM assignment_submissions WHERE student_id = :id OR student_email = :id ORDER BY submitted_at DESC");
+                $stmt->execute([':id' => $studentId]);
+            } else {
+                $stmt = $pdo->query("SELECT * FROM assignment_submissions ORDER BY submitted_at DESC");
+            }
+            $subs = $stmt->fetchAll();
+            $formatted = array_map(function($s) {
+                return [
+                    'id' => $s['id'],
+                    'assignment_id' => $s['assignment_id'],
+                    'student_id' => $s['student_id'],
+                    'student_email' => $s['student_email'],
+                    'student_name' => $s['student_name'],
+                    'submission_text' => $s['submission_text'],
+                    'submission_link' => $s['submission_link'],
+                    'status' => $s['status'],
+                    'score_numeric' => $s['score_numeric'] !== null ? (float)$s['score_numeric'] : null,
+                    'score_binary' => $s['score_binary'],
+                    'feedback' => $s['feedback'],
+                    'submitted_at' => $s['submitted_at'],
+                    'graded_at' => $s['graded_at'],
+                    'graded_by' => $s['graded_by'],
+                ];
+            }, $subs);
+            echo json_encode(['success' => true, 'submissions' => $formatted]);
+            break;
+
+        case 'submit_assignment':
+            $id = $input['id'] ?? uniqid('sub_');
+            $assignmentId = $input['assignment_id'] ?? '';
+            $studentId = $input['student_id'] ?? '';
+            $email = $input['student_email'] ?? '';
+            $name = $input['student_name'] ?? '';
+            $text = $input['submission_text'] ?? '';
+            $link = $input['submission_link'] ?? '';
+
+            if (!$assignmentId || !$studentId) {
+                echo json_encode(['success' => false, 'error' => 'Assignment ID and student ID required']);
+                break;
+            }
+
+            $stmt = $pdo->prepare("INSERT INTO assignment_submissions 
+                (id, assignment_id, student_id, student_email, student_name, submission_text, submission_link, status)
+                VALUES (:id, :asg, :std, :email, :name, :text, :link, 'submitted')
+                ON DUPLICATE KEY UPDATE 
+                    submission_text = VALUES(submission_text), submission_link = VALUES(submission_link),
+                    status = 'submitted', submitted_at = NOW()");
+            $stmt->execute([
+                ':id' => $id,
+                ':asg' => $assignmentId,
+                ':std' => $studentId,
+                ':email' => $email,
+                ':name' => $name,
+                ':text' => $text,
+                ':link' => $link,
+            ]);
+            echo json_encode(['success' => true, 'id' => $id]);
+            break;
+
+        case 'grade_submission':
+            $id = $input['id'] ?? '';
+            $scoreNum = isset($input['score_numeric']) ? (float)$input['score_numeric'] : null;
+            $scoreBin = $input['score_binary'] ?? null;
+            $feedback = $input['feedback'] ?? '';
+            $gradedBy = $input['graded_by'] ?? 'Admin';
+
+            if (!$id) {
+                echo json_encode(['success' => false, 'error' => 'Submission ID required']);
+                break;
+            }
+
+            $stmt = $pdo->prepare("UPDATE assignment_submissions SET 
+                score_numeric = :score_num,
+                score_binary = :score_bin,
+                feedback = :feedback,
+                status = 'graded',
+                graded_at = NOW(),
+                graded_by = :graded_by
+                WHERE id = :id");
+            $stmt->execute([
+                ':id' => $id,
+                ':score_num' => $scoreNum,
+                ':score_bin' => $scoreBin,
+                ':feedback' => $feedback,
+                ':graded_by' => $gradedBy,
+            ]);
+            echo json_encode(['success' => true]);
+            break;
+
+        // --- FULL BACKUP CRUD FOR USER ACCOUNTS ---
+        case 'fetch_users':
+            $users = $pdo->query("SELECT username, name, role, email, nisn, recovery_pin, auth_provider, avatar_url, created_at FROM user_accounts ORDER BY username ASC")->fetchAll();
+            echo json_encode(['success' => true, 'users' => $users]);
+            break;
+
+        case 'delete_user':
+            $username = $input['username'] ?? ($_GET['username'] ?? '');
+            if ($username) {
+                $stmt = $pdo->prepare("DELETE FROM user_accounts WHERE username = :u");
+                $stmt->execute([':u' => $username]);
+                echo json_encode(['success' => true]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'Missing username']);
+            }
+            break;
+
+        // --- FULL BACKUP CRUD FOR ALLOWED MEMBERS ---
+        case 'fetch_allowed_members':
+            $allowed = $pdo->query("SELECT * FROM allowed_members ORDER BY nama_lengkap ASC")->fetchAll();
+            echo json_encode(['success' => true, 'allowed_members' => $allowed]);
+            break;
+
+        case 'bulk_add_allowed_members':
+            $membersList = $input['members'] ?? [];
+            if (!empty($membersList) && is_array($membersList)) {
+                $stmt = $pdo->prepare("INSERT INTO allowed_members 
+                    (id, email, nama_lengkap, nis_atau_kelas, jabatan_ekskul, status_akun)
+                    VALUES (:id, :email, :nama, :nis_kelas, :jabatan, 'unclaimed')
+                    ON DUPLICATE KEY UPDATE 
+                        nama_lengkap = VALUES(nama_lengkap), nis_atau_kelas = VALUES(nis_atau_kelas), jabatan_ekskul = VALUES(jabatan_ekskul)");
+                foreach ($membersList as $m) {
+                    $id = !empty($m['id']) ? $m['id'] : uniqid('allow_');
+                    $email = strtolower(trim($m['email'] ?? ''));
+                    if ($email) {
+                        $stmt->execute([
+                            ':id' => $id,
+                            ':email' => $email,
+                            ':nama' => $m['nama_lengkap'] ?? ($m['namaLengkap'] ?? 'Member'),
+                            ':nis_kelas' => $m['nis_atau_kelas'] ?? ($m['nisAtauKelas'] ?? ''),
+                            ':jabatan' => $m['jabatan_ekskul'] ?? ($m['jabatanEkskul'] ?? 'member'),
+                        ]);
+                    }
+                }
+            }
+            echo json_encode(['success' => true]);
+            break;
+
+        case 'delete_allowed_member':
+            $id = $input['id'] ?? ($input['email'] ?? ($_GET['id'] ?? ''));
+            if ($id) {
+                $stmt = $pdo->prepare("DELETE FROM allowed_members WHERE id = :id OR email = :id");
+                $stmt->execute([':id' => $id]);
+                echo json_encode(['success' => true]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'Missing allowed member id']);
+            }
             break;
 
         default:
