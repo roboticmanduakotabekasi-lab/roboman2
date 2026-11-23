@@ -287,6 +287,11 @@ try {
                 break;
             }
 
+            if (strtolower($username) === 'admin') {
+                echo json_encode(['success' => false, 'error' => 'Username admin utama dilindungi oleh sistem']);
+                break;
+            }
+
             $stmt = $pdo->prepare("INSERT INTO user_accounts 
                 (username, password, name, role, email, nisn, recovery_pin, auth_provider)
                 VALUES (:user, :pass, :name, :role, :email, :nisn, :pin, 'credentials')
@@ -325,22 +330,126 @@ try {
             $user = $stmt->fetch();
 
             if ($user) {
-                echo json_encode([
-                    'success' => true,
-                    'user' => [
-                        'username' => $user['username'],
-                        'password' => $user['password'],
-                        'name' => $user['name'],
-                        'role' => $user['role'],
-                        'email' => $user['email'],
-                        'nisn' => $user['nisn'],
-                        'recovery_pin' => $user['recovery_pin'],
-                        'auth_provider' => $user['auth_provider'] ?: 'credentials',
-                        'avatar_url' => $user['avatar_url'] ?: '',
-                    ]
-                ]);
+                $storedPass = (string)$user['password'];
+                $storedPin = (string)($user['recovery_pin'] ?? '');
+                $sha256 = hash('sha256', $password);
+                $sha256Prefixed = 'sha256:' . $sha256;
+
+                // Robust server-side verification: sha256, bcrypt/password_verify, or raw match
+                $passMatched = (
+                    $password === $storedPass ||
+                    $sha256 === $storedPass ||
+                    $sha256Prefixed === $storedPass ||
+                    (strlen($storedPass) >= 60 && password_verify($password, $storedPass))
+                );
+
+                $pinMatched = false;
+                if ($storedPin !== '') {
+                    $pinSha256 = hash('sha256', $password);
+                    $pinSha256Prefixed = 'sha256:' . $pinSha256;
+                    $pinMatched = (
+                        $password === $storedPin ||
+                        $pinSha256 === $storedPin ||
+                        $pinSha256Prefixed === $storedPin ||
+                        (strlen($storedPin) >= 60 && password_verify($password, $storedPin))
+                    );
+                }
+
+                if ($passMatched || $pinMatched) {
+                    echo json_encode([
+                        'success' => true,
+                        'user' => [
+                            'username' => $user['username'],
+                            'name' => $user['name'],
+                            'role' => $user['role'],
+                            'email' => $user['email'],
+                            'nisn' => $user['nisn'],
+                            'auth_provider' => $user['auth_provider'] ?: 'credentials',
+                            'avatar_url' => $user['avatar_url'] ?: '',
+                            'authenticated' => true,
+                        ]
+                    ]);
+                } else {
+                    echo json_encode(['success' => false, 'error' => 'Kombinasi pengguna dan kata sandi salah.']);
+                }
             } else {
-                echo json_encode(['success' => false, 'error' => 'User not found in MySQL']);
+                echo json_encode(['success' => false, 'error' => 'Akun tidak ditemukan di database']);
+            }
+            break;
+
+        case 'verify_pin':
+            $nisn = preg_replace('/[^0-9]/', '', $input['nisn'] ?? ($_GET['nisn'] ?? ''));
+            $pin = trim($input['pin'] ?? '');
+            if (!$nisn || !$pin) {
+                echo json_encode(['success' => false, 'error' => 'NISN dan PIN wajib diisi']);
+                break;
+            }
+            $stmt = $pdo->prepare("SELECT username, name, role, email, nisn, recovery_pin FROM user_accounts 
+                WHERE REPLACE(nisn, ' ', '') = :nisn OR LOWER(username) = :u LIMIT 1");
+            $stmt->execute([':nisn' => $nisn, ':u' => strtolower($nisn)]);
+            $user = $stmt->fetch();
+            if ($user) {
+                $storedPin = (string)($user['recovery_pin'] ?? '');
+                $pinSha256 = hash('sha256', $pin);
+                $isMatch = (
+                    $pin === $storedPin ||
+                    $pinSha256 === $storedPin ||
+                    ('sha256:' . $pinSha256) === $storedPin ||
+                    (strlen($storedPin) >= 60 && password_verify($pin, $storedPin))
+                );
+                if ($isMatch) {
+                    echo json_encode([
+                        'success' => true,
+                        'account' => [
+                            'username' => $user['username'],
+                            'name' => $user['name'],
+                            'role' => $user['role'],
+                            'nisn' => $user['nisn'],
+                        ]
+                    ]);
+                } else {
+                    echo json_encode(['success' => false, 'error' => 'PIN Pemulihan salah. Pastikan PIN 4-digit yang Anda masukkan benar.']);
+                }
+            } else {
+                echo json_encode(['success' => false, 'error' => 'Akun dengan NISN ini belum terdaftar atau belum diaktivasi.']);
+            }
+            break;
+
+        case 'reset_password_with_pin':
+            $nisn = preg_replace('/[^0-9]/', '', $input['nisn'] ?? '');
+            $pin = trim($input['pin'] ?? '');
+            $newPassword = trim($input['newPassword'] ?? ($input['new_password'] ?? ''));
+            if (!$nisn || !$pin || !$newPassword) {
+                echo json_encode(['success' => false, 'error' => 'NISN, PIN, dan kata sandi baru wajib diisi']);
+                break;
+            }
+            $stmt = $pdo->prepare("SELECT username, recovery_pin FROM user_accounts 
+                WHERE REPLACE(nisn, ' ', '') = :nisn OR LOWER(username) = :u LIMIT 1");
+            $stmt->execute([':nisn' => $nisn, ':u' => strtolower($nisn)]);
+            $user = $stmt->fetch();
+            if ($user) {
+                if (strtolower($user['username']) === 'admin') {
+                    echo json_encode(['success' => false, 'error' => 'Akun admin tidak dapat di-reset melalui menu pemulihan siswa.']);
+                    break;
+                }
+                $storedPin = (string)($user['recovery_pin'] ?? '');
+                $pinSha256 = hash('sha256', $pin);
+                $isMatch = (
+                    $pin === $storedPin ||
+                    $pinSha256 === $storedPin ||
+                    ('sha256:' . $pinSha256) === $storedPin ||
+                    (strlen($storedPin) >= 60 && password_verify($pin, $storedPin))
+                );
+                if ($isMatch) {
+                    $hashedPass = hash('sha256', $newPassword);
+                    $updateStmt = $pdo->prepare("UPDATE user_accounts SET password = :p WHERE username = :u");
+                    $updateStmt->execute([':p' => $hashedPass, ':u' => $user['username']]);
+                    echo json_encode(['success' => true, 'message' => 'Kata sandi berhasil diperbarui!']);
+                } else {
+                    echo json_encode(['success' => false, 'error' => 'PIN Pemulihan tidak cocok.']);
+                }
+            } else {
+                echo json_encode(['success' => false, 'error' => 'Akun tidak ditemukan.']);
             }
             break;
 
@@ -839,13 +948,17 @@ try {
 
         // --- FULL BACKUP CRUD FOR USER ACCOUNTS ---
         case 'fetch_users':
-            $users = $pdo->query("SELECT username, name, role, email, nisn, recovery_pin, auth_provider, avatar_url, created_at FROM user_accounts ORDER BY username ASC")->fetchAll();
+            $users = $pdo->query("SELECT username, name, role, email, nisn, auth_provider, avatar_url, created_at FROM user_accounts ORDER BY username ASC")->fetchAll();
             echo json_encode(['success' => true, 'users' => $users]);
             break;
 
         case 'delete_user':
-            $username = $input['username'] ?? ($_GET['username'] ?? '');
+            $username = trim($input['username'] ?? ($_GET['username'] ?? ''));
             if ($username) {
+                if (strtolower($username) === 'admin') {
+                    echo json_encode(['success' => false, 'error' => 'Akun admin utama dilindungi dan tidak boleh dihapus.']);
+                    break;
+                }
                 $stmt = $pdo->prepare("DELETE FROM user_accounts WHERE username = :u");
                 $stmt->execute([':u' => $username]);
                 echo json_encode(['success' => true]);

@@ -764,7 +764,8 @@ export async function verifyAccountCredentials(
       const data = await res.json();
       if (data?.success && data.user) {
         const row = data.user;
-        const isPasswordMatched = await verifyPasswordMatch(passwordAttempt, row.password);
+        const isServerAuthenticated = Boolean(row.authenticated);
+        const isPasswordMatched = isServerAuthenticated || (row.password ? await verifyPasswordMatch(passwordAttempt, row.password) : false);
         const storedPin = String(row.recovery_pin || '').trim();
         const isPinMatched = Boolean(
           storedPin && (
@@ -774,10 +775,10 @@ export async function verifyAccountCredentials(
           )
         );
 
-        if (isPasswordMatched || isPinMatched) {
+        if (isServerAuthenticated || isPasswordMatched || isPinMatched) {
           const dbAcc: AccountConfig = {
             username: String(row.username).trim(),
-            password: row.password,
+            password: row.password ? row.password : await hashPassword(passwordAttempt),
             recoveryPin: storedPin || undefined,
             name: String(row.name || row.username).trim(),
             role: String(row.role || 'Club Member').trim(),
@@ -1219,22 +1220,19 @@ export async function verifyStudentRecoveryPin(
     return { success: false, error: 'PIN Pemulihan wajib 4 digit angka rahasia.' };
   }
 
-  // 1. Panggil backend server endpoint (/api/auth/verify-pin)
+  // 1. Panggil backend server endpoint PHP (./api.php?action=verify_pin)
   try {
-    const res = await fetch('api/auth/verify-pin', {
+    const res = await fetch('./api.php?action=verify_pin', {
       method: 'POST',
-      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
       },
       body: JSON.stringify({ nisn: cleanNisn, pin: cleanPin }),
     });
 
-    const contentType = res.headers.get('content-type') || '';
-    if (contentType.includes('application/json')) {
+    if (res.ok) {
       const data = await res.json();
-      if (res.ok && data.success && data.account) {
+      if (data?.success && data.account) {
         return {
           success: true,
           account: {
@@ -1251,6 +1249,40 @@ export async function verifyStudentRecoveryPin(
   } catch (err) {
     console.warn('[Verify PIN server call notice, checking fallback]', err);
   }
+
+  // 1.5. Cek Supabase user_accounts
+  try {
+    const supa = getSupabase();
+    const { data } = await supa
+      .from('user_accounts')
+      .select('username, name, role, nisn, recovery_pin')
+      .or(`nisn.eq.${cleanNisn},username.eq.${cleanNisn}`)
+      .limit(1);
+
+    if (data && data.length > 0) {
+      const u = data[0];
+      const storedPin = String(u.recovery_pin || '').trim();
+      const isPinMatch = storedPin && (
+        storedPin.startsWith('pin_v1$') || storedPin.startsWith('sha256:')
+          ? await verifyPasswordMatch(cleanPin, storedPin)
+          : storedPin === cleanPin
+      );
+
+      if (isPinMatch) {
+        return {
+          success: true,
+          account: {
+            username: u.username,
+            name: u.name,
+            role: u.role,
+            nisn: u.nisn,
+          },
+        };
+      } else {
+        return { success: false, error: 'PIN Pemulihan 4-digit salah. Pastikan PIN rahasia yang Anda buat saat aktivasi sudah benar.' };
+      }
+    }
+  } catch {}
 
   // 2. Offline fallback dari akun lokal
   const accounts = getCustomAccounts();
@@ -1280,30 +1312,30 @@ export async function updateAccountPasswordByNisn(nisn: string, newPlainPassword
   const cleanNisn = nisn.replace(/[^0-9]/g, '').trim();
   const rawPass = newPlainPassword.trim();
 
-  // 1. Panggil backend server endpoint (/api/auth/recover-with-pin)
+  // 1. Panggil backend server endpoint PHP (./api.php?action=reset_password_with_pin)
   if (recoveryPin) {
     try {
-      const res = await fetch('api/auth/recover-with-pin', {
+      const res = await fetch('./api.php?action=reset_password_with_pin', {
         method: 'POST',
-        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
         },
         body: JSON.stringify({ nisn: cleanNisn, pin: recoveryPin.trim(), newPassword: rawPass }),
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        // Also update local cache
-        const accounts = getCustomAccounts();
-        const idx = accounts.findIndex(a => (a.nisn && a.nisn === cleanNisn) || a.username.toLowerCase() === cleanNisn);
-        if (idx !== -1) {
-          accounts[idx].password = await hashPassword(rawPass);
-          saveCustomAccounts(accounts);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success) {
+          // Also update local cache
+          const accounts = getCustomAccounts();
+          const idx = accounts.findIndex(a => (a.nisn && a.nisn === cleanNisn) || a.username.toLowerCase() === cleanNisn);
+          if (idx !== -1) {
+            accounts[idx].password = await hashPassword(rawPass);
+            saveCustomAccounts(accounts);
+          }
+          return { success: true };
+        } else if (data && data.error) {
+          return { success: false, error: data.error };
         }
-        return { success: true };
-      } else if (data && data.error) {
-        return { success: false, error: data.error };
       }
     } catch (err) {
       console.warn('[Recover with PIN server call notice]', err);
