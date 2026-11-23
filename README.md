@@ -150,10 +150,12 @@ To safeguard student privacy and prevent unauthorized account takeovers, the pla
 ```
 
 ### Verification & Account Recovery Security Rules
-- **10-Digit NISN Validation**: Validates that the entered identifier consists of exactly 10 numeric digits according to the Indonesian Ministry of Education standard.
-- **Dual-Factor Cross Check**: Even if a student's NISN is known to peers, the date of birth prevents fraudulent identity takeover.
-- **One-Account Claim Rule**: Each NISN can only be tied to a single verified user session.
-- **Self-Service 4-Digit Recovery PIN**: Students configure a personal 4-digit PIN upon initial account activation. If password is forgotten, students recover and reset credentials independently using NISN + PIN without requiring external email/SMTP servers.
+- **Zero-Barrier Student Self-Activation**: Enrolled students can activate their accounts directly from their personal smartphones or laptops on any network. **No prior administrator or faculty login is required on that device**.
+- **Instant Master Roster Recognition**: Entering a 10-digit NISN triggers real-time verification against the central database (`api.php?action=lookup_member` or Supabase). Upon match, the student's full name and class are displayed immediately.
+- **10-Digit NISN Validation**: Validates that the entered identifier consists of exactly 10 numeric digits according to the official Indonesian National Student Identity (NISN) standard.
+- **One-Account Claim Rule**: Each NISN can only be tied to a single verified student user account (`user_accounts`).
+- **Self-Service 4-Digit Recovery PIN (Email-Free)**: During self-activation, students set a secret 4-digit Recovery PIN. If a password is forgotten, students can reset their credentials independently using their NISN + PIN directly through `api.php?action=reset_password_with_pin` without requiring SMTP, external mail servers, or administrator intervention.
+- **Shared Workshop/Lab Wi-Fi Protection**: Anti-brute force rate limiting isolates failed attempts per account (max 5 failed attempts per target NISN/username) from the host IP (max 40 failed attempts per IP address over a 15-minute sliding window), preventing an entire laboratory Wi-Fi network from being locked out due to a single mistyped password.
 - **Admin Emergency Override**: System administrators can manually verify students, correct date-of-birth records, or reset student passwords via the *Member Directory* detail modal if both password and PIN are lost.
 - **Demo Sandbox Mode**: Sandbox demo accounts allow instant testing without locking out reviewers, maintaining isolated local mock storage (`robotics_demo_sandbox_*`).
 
@@ -360,15 +362,15 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.assignment_submissions;
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-org/roboticman2kotabekasi.git
-cd roboticman2kotabekasi
+git clone https://github.com/roboticmanduakotabekasi-lab/roboman2.git
+cd roboman2
 
 # 2. Install dependencies
 npm install
 
 # 3. Setup environment variables
 cp .env.example .env
-# Edit .env with your Supabase credentials
+# Edit .env with your configuration
 
 # 4. Start the full-stack development server
 npm run dev
@@ -389,7 +391,7 @@ Open [http://localhost:3000](http://localhost:3000) in your web browser.
 
 ## 🌐 Self-Hosting & Production Deployment Guide
 
-Deploy `roboticman2kotabekasi` on your own VPS, dedicated server, home server, or container host under a custom subdomain (e.g., `robotik.your-domain.sch.id`). `server.ts` serves both the compiled `dist/` frontend and `/api/*` backend in a single Node.js 22+ process.
+Deploy `roboman2` on your own VPS, dedicated server, home server, or container host under a custom subdomain (e.g., `robotik.your-domain.sch.id`). `server.ts` serves both the compiled `dist/` frontend and `/api/*` backend in a single Node.js 22+ process.
 
 ### Option 1: VPS / Bare-Metal (Node.js 22 + PM2 + Nginx SSL)
 
@@ -401,7 +403,7 @@ Add an `A` record in your DNS provider:
 
 #### Step 2: Build the Application on the Server
 ```bash
-cd /var/www/roboticman2kotabekasi
+cd /var/www/roboman2
 cp .env.example .env
 # Edit .env and set ADMIN_PASSWORD, SESSION_SECRET, VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
 
@@ -460,15 +462,15 @@ sudo certbot --nginx -d robotik.your-domain.sch.id
 
 ```bash
 # Build image (pass Supabase public config at build time if Vite bakes env vars)
-docker build -t roboticman2 .
+docker build -t roboman2 .
 
 # Run container with persistent server secrets
 docker run -d \
-  --name roboticman2 \
+  --name roboman2 \
   --restart unless-stopped \
   -p 3000:3000 \
   --env-file .env \
-  roboticman2
+  roboman2
 ```
 
 ### Option 3: cPanel / Shared Hosting (Apache + MySQL via `api.php`)
@@ -500,6 +502,10 @@ Deploy `roboman2` on standard cPanel shared hosting (e.g., Domainesia, Niagahost
    - Test backend health anytime at `https://your-domain.sch.id/app/api.php?action=health`.
 5. **Alumni & Demisioner Security Lock (RBAC)**:
    - When students graduate or are marked as `Alumni` or `Keluar`, the system automatically revokes Executive Board edit privileges and excludes them from daily attendance rosters, preserving historical attendance and financial ledger records.
+6. **Zero-Barrier Student Self-Activation & PIN Recovery**:
+   - Students can open `https://your-domain.sch.id/app/` from their personal smartphone or computer, switch to the **Activation (Aktivasi Akun)** tab, enter their 10-digit NISN, set their password, and choose a 4-digit Recovery PIN.
+   - **No prior administrator or faculty device login is required**. The student's identity is verified directly against the club's master roster in MySQL.
+   - Forgotten passwords can be reset independently using NISN + 4-digit PIN via the **Self-Service Password Recovery** tab without needing email verification or SMTP configuration.
 
 ---
 
