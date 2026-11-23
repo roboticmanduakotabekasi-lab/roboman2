@@ -1268,10 +1268,54 @@ export default function App() {
       }
       setIsSupabaseConnected(!supaResult.error || supaResult.needsSetup);
 
+      // Fallback: If Supabase is offline or empty, load directly from PHP / MySQL (api.php)
+      try {
+        const mysqlData = await fetchFromMySQL();
+        if (mysqlData) {
+          if (mysqlData.members && mysqlData.members.length > 0) {
+            const safeMembers = sanitizeMemberList(mysqlData.members);
+            setMembers(safeMembers);
+            localStorage.setItem('robotics_members', JSON.stringify(safeMembers));
+          }
+          if (mysqlData.attendance && mysqlData.attendance.length > 0) {
+            const safeAttendance = sanitizeAttendanceList(mysqlData.attendance);
+            setAttendance(safeAttendance);
+            localStorage.setItem('robotics_attendance', JSON.stringify(safeAttendance));
+          }
+          if (mysqlData.cash && mysqlData.cash.length > 0) {
+            const safeCash = sanitizeCashList(mysqlData.cash);
+            setCash(safeCash);
+            localStorage.setItem('robotics_cash', JSON.stringify(safeCash));
+          }
+        }
+      } catch {}
+
     } catch (err: unknown) {
       const error = err as Error;
       console.error('Fetch error:', error);
       setIsSupabaseConnected(false);
+
+      // Full Offline/PHP-Only Resilience Fallback
+      try {
+        const mysqlData = await fetchFromMySQL();
+        if (mysqlData) {
+          if (mysqlData.members && mysqlData.members.length > 0) {
+            const safeMembers = sanitizeMemberList(mysqlData.members);
+            setMembers(safeMembers);
+            localStorage.setItem('robotics_members', JSON.stringify(safeMembers));
+          }
+          if (mysqlData.attendance && mysqlData.attendance.length > 0) {
+            const safeAttendance = sanitizeAttendanceList(mysqlData.attendance);
+            setAttendance(safeAttendance);
+            localStorage.setItem('robotics_attendance', JSON.stringify(safeAttendance));
+          }
+          if (mysqlData.cash && mysqlData.cash.length > 0) {
+            const safeCash = sanitizeCashList(mysqlData.cash);
+            setCash(safeCash);
+            localStorage.setItem('robotics_cash', JSON.stringify(safeCash));
+          }
+        }
+      } catch {}
     } finally {
       setIsSyncing(false);
     }
